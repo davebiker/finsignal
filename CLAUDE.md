@@ -16,8 +16,8 @@ and AI-powered investment research.
 | Styling | Tailwind CSS | Rapid iteration, consistent design tokens |
 | Charts | Recharts | Lightweight, composable, SSR-compatible |
 | AI | Anthropic Claude (claude-sonnet-4-20250514) | Best-in-class financial reasoning |
-| Market Data | Yahoo Finance (yfinance2) | Free, reliable quotes |
-| Earnings | Alpha Vantage + FMP | Complementary datasets |
+| Market Data | Yahoo Finance (v8 chart API) | Free, reliable quotes |
+| Earnings | Alpha Vantage + FMP + Finnhub | Complementary datasets |
 | Hosting | Vercel | Zero-config Next.js deployment |
 
 ---
@@ -60,8 +60,9 @@ src/
 │       └── EarningsChart.tsx   # Recharts earnings visualization
 ├── lib/
 │   ├── alphavantage.ts         # Alpha Vantage API client
+│   ├── finnhub.ts              # Finnhub earnings calendar client
 │   ├── fmp.ts                  # Financial Modeling Prep client
-│   ├── yahoo.ts                # Yahoo Finance server-side wrapper
+│   ├── yahoo.ts                # Yahoo Finance v8 chart API wrapper
 │   ├── supabase.ts             # Supabase client factory
 │   └── utils.ts                # Formatting, colors, helpers
 └── types/
@@ -145,6 +146,7 @@ AiAnalysisPanel → POST /api/analyze
 |---------|-----------|-------|
 | Alpha Vantage | 25 req/day | Cache aggressively; use ISR |
 | FMP | 250 req/day | Most endpoints |
+| Finnhub | 60 req/min | Earnings calendar |
 | Yahoo Finance | Unofficial | No hard limit; be respectful |
 | Anthropic | Pay-per-use | claude-sonnet-4-20250514 |
 
@@ -171,6 +173,7 @@ SUPABASE_SERVICE_ROLE_KEY
 ANTHROPIC_API_KEY
 ALPHA_VANTAGE_API_KEY
 FMP_API_KEY
+FINNHUB_API_KEY
 ```
 
 ---

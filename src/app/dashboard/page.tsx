@@ -1,6 +1,6 @@
 import { createSupabaseAdmin } from '@/lib/supabase'
 import { fetchMarketIndices } from '@/lib/yahoo'
-import { getEarningsCalendar } from '@/lib/fmp'
+import { getEarningsCalendar } from '@/lib/finnhub'
 import { format, addDays, startOfWeek, endOfWeek } from 'date-fns'
 import { MarketOverview } from './MarketOverview'
 import { WatchlistSection } from './WatchlistSection'

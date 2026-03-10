@@ -19,29 +19,49 @@ export interface YFQuote {
   exchange?: string
 }
 
-const YF_BASE = 'https://query1.finance.yahoo.com/v7/finance/quote'
+// ── v8 chart API (primary — no auth/crumb needed) ──────────
 
-async function yfFetch(symbols: string[]): Promise<YFQuote[]> {
-  const url = `${YF_BASE}?symbols=${symbols.join(',')}`
+const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+
+async function yfFetchChart(symbol: string): Promise<YFQuote | null> {
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=2d&interval=1d&includePrePost=false`
   const res = await fetch(url, {
-    headers: { 'User-Agent': 'Mozilla/5.0' },
-    next: { revalidate: 60 },
+    headers: { 'User-Agent': UA },
+    cache: 'no-store',
   })
 
-  if (!res.ok) {
-    throw new Error(`Yahoo Finance HTTP ${res.status}`)
-  }
-
+  if (!res.ok) return null
   const json = await res.json()
-  const results = json?.quoteResponse?.result
-  if (!Array.isArray(results)) return []
-  return results as YFQuote[]
+  const meta = json?.chart?.result?.[0]?.meta
+  if (!meta) return null
+
+  const price = meta.regularMarketPrice
+  const prevClose = meta.chartPreviousClose ?? meta.previousClose
+  const change = price != null && prevClose != null ? price - prevClose : undefined
+  const changePct = change != null && prevClose && prevClose !== 0
+    ? (change / prevClose) * 100
+    : undefined
+
+  return {
+    symbol: meta.symbol ?? symbol,
+    shortName: meta.shortName,
+    longName: meta.longName,
+    regularMarketPrice: price,
+    regularMarketChange: change,
+    regularMarketChangePercent: changePct,
+    regularMarketVolume: meta.regularMarketVolume,
+    fiftyTwoWeekHigh: meta.fiftyTwoWeekHigh,
+    fiftyTwoWeekLow: meta.fiftyTwoWeekLow,
+    marketCap: meta.marketCap,
+    exchange: meta.exchangeName,
+  }
 }
+
+// ── Public API ──────────────────────────────────────────────
 
 export async function fetchYahooQuote(ticker: string): Promise<YFQuote | null> {
   try {
-    const quotes = await yfFetch([ticker])
-    return quotes[0] ?? null
+    return await yfFetchChart(ticker)
   } catch (err) {
     console.error(`Yahoo Finance error for ${ticker}:`, err)
     return null
@@ -57,25 +77,21 @@ export async function fetchMarketIndices(): Promise<MarketIndex[]> {
     { symbol: '^VIX', name: 'VIX' },
   ]
 
-  try {
-    const quotes = await yfFetch(symbols.map((s) => s.symbol))
-    const quoteMap = new Map(quotes.map((q) => [q.symbol, q]))
+  const results = await Promise.allSettled(
+    symbols.map(({ symbol }) => yfFetchChart(symbol))
+  )
 
-    return symbols.map(({ symbol, name }) => {
-      const q = quoteMap.get(symbol)
-      return {
-        name,
-        symbol,
-        value: q?.regularMarketPrice ?? 0,
-        change: q?.regularMarketChange ?? 0,
-        changePct: q?.regularMarketChangePercent ?? 0,
-      }
-    })
-  } catch {
-    return symbols.map(({ symbol, name }) => ({
-      name, symbol, value: 0, change: 0, changePct: 0,
-    }))
-  }
+  return symbols.map(({ symbol, name }, i) => {
+    const result = results[i]
+    const q = result.status === 'fulfilled' ? result.value : null
+    return {
+      name,
+      symbol,
+      value: q?.regularMarketPrice ?? 0,
+      change: q?.regularMarketChange ?? 0,
+      changePct: q?.regularMarketChangePercent ?? 0,
+    }
+  })
 }
 
 export function yfQuoteToCompanyQuote(q: YFQuote): CompanyQuote {

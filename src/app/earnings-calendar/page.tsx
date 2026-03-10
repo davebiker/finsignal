@@ -1,17 +1,17 @@
-import { format, addDays, startOfWeek, endOfWeek, parseISO, isSameDay } from 'date-fns'
-import { getEarningsCalendar } from '@/lib/fmp'
+import { format, addDays, parseISO, isSameDay } from 'date-fns'
+import { getEarningsCalendar, FinnhubEarningsEvent } from '@/lib/finnhub'
 import { formatLargeNumber } from '@/lib/utils'
 import Link from 'next/link'
-import { Calendar, Clock, TrendingUp, Building2 } from 'lucide-react'
+import { Calendar, Clock, ChevronRight } from 'lucide-react'
 
+export const dynamic = 'force-dynamic'
 export const revalidate = 1800
 
-function groupByDate(events: Array<{ date: string; [key: string]: any }>) {
-  const groups: Record<string, typeof events> = {}
+function groupByDate(events: FinnhubEarningsEvent[]) {
+  const groups: Record<string, FinnhubEarningsEvent[]> = {}
   for (const event of events) {
-    const key = event.date
-    if (!groups[key]) groups[key] = []
-    groups[key].push(event)
+    if (!groups[event.date]) groups[event.date] = []
+    groups[event.date].push(event)
   }
   return groups
 }
@@ -21,16 +21,15 @@ export default async function EarningsCalendarPage() {
   const from = format(now, 'yyyy-MM-dd')
   const to = format(addDays(now, 21), 'yyyy-MM-dd')
 
-  let events: any[] = []
+  let events: FinnhubEarningsEvent[] = []
   try {
     const raw = await getEarningsCalendar(from, to)
-    // Filter to companies with meaningful revenue estimates
     events = raw
       .filter((e) => e.symbol && e.date)
       .sort((a, b) => {
         const dateComp = a.date.localeCompare(b.date)
         if (dateComp !== 0) return dateComp
-        return (b.revenueEstimated ?? 0) - (a.revenueEstimated ?? 0)
+        return (b.revenueEstimate ?? 0) - (a.revenueEstimate ?? 0)
       })
   } catch (e) {
     console.error('Failed to load earnings calendar:', e)
@@ -40,14 +39,14 @@ export default async function EarningsCalendarPage() {
   const dates = Object.keys(grouped).sort()
 
   const timeLabel = (t: string) => {
-    if (t === 'BMO') return { label: 'Pre-Market', color: 'text-accent-blue' }
-    if (t === 'AMC') return { label: 'After-Close', color: 'text-accent-purple' }
+    if (t === 'bmo') return { label: 'Pre-Market', color: 'text-accent-blue' }
+    if (t === 'amc') return { label: 'After-Close', color: 'text-accent-purple' }
     return { label: 'TBD', color: 'text-text-muted' }
   }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-8 animate-fade-in">
-      
+
       {/* Header */}
       <div>
         <div className="flex items-center gap-2 mb-1">
@@ -67,7 +66,7 @@ export default async function EarningsCalendarPage() {
       {dates.length === 0 ? (
         <div className="card p-12 text-center">
           <Calendar className="w-12 h-12 text-text-muted mx-auto mb-3 opacity-20" />
-          <p className="text-text-muted">No earnings events found. Check your FMP API key.</p>
+          <p className="text-text-muted">No earnings events found. Check your Finnhub API key.</p>
         </div>
       ) : (
         <div className="space-y-6">
@@ -87,7 +86,7 @@ export default async function EarningsCalendarPage() {
                       : 'bg-surface-2 border-border text-text-secondary'
                     }
                   `}>
-                    {isToday ? '📅 TODAY' : format(parsedDate, 'EEE, MMM d')}
+                    {isToday ? 'TODAY' : format(parsedDate, 'EEE, MMM d')}
                   </div>
                   <span className="text-xs font-mono text-text-muted">
                     {dayEvents.length} report{dayEvents.length !== 1 ? 's' : ''}
@@ -98,8 +97,8 @@ export default async function EarningsCalendarPage() {
                 {/* Events grid */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                   {dayEvents.map((event) => {
-                    const timing = timeLabel(event.time)
-                    const hasEstimates = event.epsEstimated != null || event.revenueEstimated != null
+                    const timing = timeLabel(event.hour)
+                    const hasEstimates = event.epsEstimate != null || event.revenueEstimate != null
 
                     return (
                       <Link
@@ -124,19 +123,19 @@ export default async function EarningsCalendarPage() {
 
                         {hasEstimates ? (
                           <div className="space-y-1">
-                            {event.epsEstimated != null && (
+                            {event.epsEstimate != null && (
                               <div className="flex justify-between text-xs">
                                 <span className="text-text-muted font-mono">EPS Est.</span>
                                 <span className="font-mono tabular-nums text-text-secondary">
-                                  ${event.epsEstimated.toFixed(2)}
+                                  ${event.epsEstimate.toFixed(2)}
                                 </span>
                               </div>
                             )}
-                            {event.revenueEstimated != null && (
+                            {event.revenueEstimate != null && (
                               <div className="flex justify-between text-xs">
                                 <span className="text-text-muted font-mono">Rev. Est.</span>
                                 <span className="font-mono tabular-nums text-text-secondary">
-                                  {formatLargeNumber(event.revenueEstimated)}
+                                  {formatLargeNumber(event.revenueEstimate)}
                                 </span>
                               </div>
                             )}

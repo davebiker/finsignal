@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { fetchMarketIndices } from '@/lib/yahoo'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET() {
   try {
     const indices = await fetchMarketIndices()

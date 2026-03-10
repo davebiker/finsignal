@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getEarningsCalendar } from '@/lib/fmp'
+import { getEarningsCalendar } from '@/lib/finnhub'
 import { format, addDays } from 'date-fns'
 
 export async function GET(req: NextRequest) {

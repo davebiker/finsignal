@@ -1,13 +1,12 @@
 import Link from 'next/link'
-import { FMPEarningsCalendar } from '@/types'
-import { formatDate, formatLargeNumber } from '@/lib/utils'
+import { FinnhubEarningsEvent } from '@/lib/finnhub'
+import { formatLargeNumber } from '@/lib/utils'
 import { Calendar, ChevronRight } from 'lucide-react'
 
-export function EarningsThisWeek({ events }: { events: FMPEarningsCalendar[] }) {
-  // Sort by date, show top 15 by estimated revenue
+export function EarningsThisWeek({ events }: { events: FinnhubEarningsEvent[] }) {
   const sorted = events
-    .filter((e) => e.revenueEstimated && e.revenueEstimated > 1e8)
-    .sort((a, b) => (b.revenueEstimated ?? 0) - (a.revenueEstimated ?? 0))
+    .filter((e) => e.revenueEstimate && e.revenueEstimate > 1e8)
+    .sort((a, b) => (b.revenueEstimate ?? 0) - (a.revenueEstimate ?? 0))
     .slice(0, 12)
 
   if (!sorted.length) {
@@ -23,7 +22,7 @@ export function EarningsThisWeek({ events }: { events: FMPEarningsCalendar[] }) 
     <div className="card divide-y divide-border overflow-hidden">
       {sorted.map((event) => (
         <Link
-          key={event.symbol}
+          key={`${event.symbol}-${event.date}`}
           href={`/company/${event.symbol}`}
           className="flex items-center justify-between px-4 py-3 hover:bg-surface-2 transition-colors group"
         >
@@ -34,14 +33,14 @@ export function EarningsThisWeek({ events }: { events: FMPEarningsCalendar[] }) 
             <div className="min-w-0">
               <p className="font-mono text-sm font-semibold text-text-primary">{event.symbol}</p>
               <p className="text-[10px] font-mono text-text-muted">
-                {event.date} · {event.time === 'BMO' ? 'Pre-mkt' : event.time === 'AMC' ? 'Post-mkt' : 'TBD'}
+                {event.date} · {event.hour === 'bmo' ? 'Pre-mkt' : event.hour === 'amc' ? 'Post-mkt' : 'TBD'}
               </p>
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            {event.revenueEstimated && (
+            {event.revenueEstimate != null && (
               <span className="text-xs font-mono text-text-secondary">
-                {formatLargeNumber(event.revenueEstimated)}
+                {formatLargeNumber(event.revenueEstimate)}
               </span>
             )}
             <ChevronRight className="w-3 h-3 text-text-muted group-hover:text-accent-green transition-colors" />
