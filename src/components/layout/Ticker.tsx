@@ -1,6 +1,5 @@
 'use client'
 
-import { useEffect, useState } from 'react'
 import { cn } from '@/lib/utils'
 import { formatPercent } from '@/lib/utils'
 
@@ -30,10 +29,8 @@ const MOCK_TICKERS: TickerItem[] = [
 ]
 
 export function Ticker() {
-  const [tickers] = useState<TickerItem[]>(MOCK_TICKERS)
-
   // Duplicate for seamless loop
-  const doubled = [...tickers, ...tickers]
+  const doubled = [...MOCK_TICKERS, ...MOCK_TICKERS]
 
   return (
     <div className="fixed top-16 left-0 right-0 z-40 bg-surface/90 backdrop-blur-sm border-b border-border overflow-hidden h-[40px]">

@@ -6,7 +6,7 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { cookies } from 'next/headers'
 
-const SUPERADMIN_EMAIL = 'david@beska.cz'
+import { SUPERADMIN_EMAIL } from '@/lib/constants'
 
 // GET /api/admin/users — list pending users
 export async function GET(req: NextRequest) {

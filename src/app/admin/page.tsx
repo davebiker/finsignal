@@ -161,12 +161,12 @@ export default function AdminPage() {
             No pending registrations.
           </div>
         ) : (
-          <div className="card overflow-hidden">
-            <table className="w-full text-sm">
+          <div className="card overflow-hidden overflow-x-auto">
+            <table className="w-full text-sm min-w-[500px]">
               <thead>
                 <tr className="border-b border-border">
                   <th className="text-left px-4 py-3 text-xs font-mono text-text-muted uppercase tracking-widest">Email</th>
-                  <th className="text-left px-4 py-3 text-xs font-mono text-text-muted uppercase tracking-widest">Registered</th>
+                  <th className="text-left px-4 py-3 text-xs font-mono text-text-muted uppercase tracking-widest hidden sm:table-cell">Registered</th>
                   <th className="text-right px-4 py-3 text-xs font-mono text-text-muted uppercase tracking-widest">Actions</th>
                 </tr>
               </thead>
@@ -176,7 +176,7 @@ export default function AdminPage() {
                     <td className="px-4 py-3">
                       <span className="font-mono text-sm text-text-primary">{user.email}</span>
                     </td>
-                    <td className="px-4 py-3 text-xs font-mono text-text-secondary">
+                    <td className="px-4 py-3 text-xs font-mono text-text-secondary hidden sm:table-cell">
                       {formatDate(user.created_at)}
                     </td>
                     <td className="px-4 py-3 text-right">

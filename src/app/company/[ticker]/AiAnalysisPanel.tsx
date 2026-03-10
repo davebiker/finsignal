@@ -17,6 +17,7 @@ interface Props {
 
 export function AiAnalysisPanel({ ticker, existingAnalysis }: Props) {
   const [analysis, setAnalysis] = useState<AiAnalysis | null>(existingAnalysis)
+  const [longTermRec, setLongTermRec] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [expanded, setExpanded] = useState(true)
@@ -58,6 +59,7 @@ export function AiAnalysisPanel({ ticker, existingAnalysis }: Props) {
         created_at: new Date().toISOString(),
       }
       setAnalysis(mapped)
+      setLongTermRec(data.analysis?.long_term_recommendation ?? null)
       setExpanded(true)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unknown error')
@@ -256,6 +258,21 @@ export function AiAnalysisPanel({ ticker, existingAnalysis }: Props) {
                   </div>
                 )}
               </div>
+
+              {/* Long-term recommendation */}
+              {longTermRec && (
+                <div className="p-4 bg-accent-blue/5 rounded-xl border border-accent-blue/20">
+                  <div className="flex items-center gap-2 mb-2 text-accent-blue">
+                    <TrendingUp className="w-3.5 h-3.5" />
+                    <span className="text-xs font-mono font-semibold uppercase tracking-wide">
+                      Long-Term Outlook (3-5 Years)
+                    </span>
+                  </div>
+                  <p className="text-xs text-text-secondary leading-relaxed">
+                    {longTermRec}
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </div>

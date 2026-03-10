@@ -94,7 +94,9 @@ Always respond ONLY with a valid JSON object — no markdown, no preamble.`
 
 ${JSON.stringify(contextPayload, null, 2)}
 
-Produce a comprehensive earnings and forward investment analysis. Respond ONLY with this JSON structure:
+Produce a comprehensive earnings and forward investment analysis. Also provide a long-term recommendation (3-5 year horizon) for a buy-and-hold investor considering valuation, growth trend, analyst consensus and earnings consistency.
+
+Respond ONLY with this JSON structure:
 {
   "bull_case": "string: 2-3 sentence optimistic scenario with specific data points",
   "base_case": "string: 2-3 sentence base scenario aligned with consensus",
@@ -105,12 +107,13 @@ Produce a comprehensive earnings and forward investment analysis. Respond ONLY w
   "eps_outlook_q_plus_2": "string: specific EPS estimate/range for Q+2 with rationale",
   "summary": "string: 3-4 sentence executive summary of the investment case",
   "sentiment": "bullish" | "neutral" | "bearish",
-  "consensus_pt": number | null
+  "consensus_pt": number | null,
+  "long_term_recommendation": "string: 2-4 sentence specific long-term (3-5 year) recommendation for buy-and-hold investors, covering valuation attractiveness, growth trajectory, competitive moat, and whether to accumulate, hold, or avoid at current levels"
 }`
 
     const response = await anthropic.messages.create({
       model: 'claude-sonnet-4-20250514',
-      max_tokens: 1000,
+      max_tokens: 1500,
       messages: [{ role: 'user', content: userPrompt }],
       system: systemPrompt,
     })
@@ -120,11 +123,20 @@ Produce a comprehensive earnings and forward investment analysis. Respond ONLY w
       .map((c) => c.text)
       .join('')
 
-    // Parse JSON (strip any accidental markdown)
-    const cleaned = rawText.replace(/```json|```/g, '').trim()
+    // Parse JSON — try direct parse first, then extract from markdown/text
     let analysis: AiAnalysisResponse
 
     try {
+      // Strip markdown fences first
+      let cleaned = rawText.replace(/```json\s*|```\s*/g, '').trim()
+      // If still not valid JSON, try to extract the JSON object
+      if (!cleaned.startsWith('{')) {
+        const start = cleaned.indexOf('{')
+        const end = cleaned.lastIndexOf('}')
+        if (start !== -1 && end !== -1) {
+          cleaned = cleaned.slice(start, end + 1)
+        }
+      }
       analysis = JSON.parse(cleaned)
     } catch {
       return NextResponse.json(

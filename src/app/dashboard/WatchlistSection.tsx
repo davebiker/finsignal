@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createSupabaseClient } from '@/lib/supabase'
 import { cn, formatCurrency, formatPercent, formatLargeNumber } from '@/lib/utils'
+import { calculateSignal, signalColor, signalBg, type ValueSignal } from '@/lib/signals'
 import { Plus, TrendingUp, TrendingDown, ChevronRight, X, Loader2 } from 'lucide-react'
 import type { WatchlistItem } from '@/types'
 
@@ -13,9 +14,26 @@ interface QuoteData {
   marketCap: number | null
   pe: number | null
   name: string | null
+  analystTarget: number | null
+  sector: string | null
+  epsBeatRatio: number | null
 }
 
-export function WatchlistSection() {
+// Expose signal summary for PortfolioSummary to consume
+export interface WatchlistSignalSummary {
+  total: number
+  buy: number
+  hold: number
+  sell: number
+  avgPE: number | null
+  sectors: Record<string, number>
+}
+
+interface Props {
+  onSignalSummary?: (summary: WatchlistSignalSummary) => void
+}
+
+export function WatchlistSection({ onSignalSummary }: Props) {
   const router = useRouter()
   const supabase = createSupabaseClient()
 
@@ -28,7 +46,49 @@ export function WatchlistSection() {
   const [deleting, setDeleting] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  // Fetch quotes for a list of tickers
+  // Compute signals for all items
+  function computeSignals(
+    watchlist: WatchlistItem[],
+    quoteMap: Record<string, QuoteData>
+  ): Record<string, { signal: ValueSignal; upside: number | null }> {
+    const result: Record<string, { signal: ValueSignal; upside: number | null }> = {}
+    for (const item of watchlist) {
+      const q = quoteMap[item.ticker]
+      if (!q) continue
+      const { signal, upside } = calculateSignal({
+        price: q.price,
+        analystTarget: q.analystTarget,
+        pe: q.pe,
+        sector: q.sector ?? item.sector,
+        epsBeatRatio: q.epsBeatRatio,
+      })
+      result[item.ticker] = { signal, upside }
+    }
+    return result
+  }
+
+  // Emit summary whenever quotes change
+  useEffect(() => {
+    if (!onSignalSummary || items.length === 0) return
+    const signals = computeSignals(items, quotes)
+    const signalValues = Object.values(signals)
+    const pes = items.map((i) => quotes[i.ticker]?.pe).filter((p): p is number => p != null && p > 0)
+    const sectors: Record<string, number> = {}
+    for (const item of items) {
+      const s = quotes[item.ticker]?.sector ?? item.sector ?? 'Unknown'
+      sectors[s] = (sectors[s] ?? 0) + 1
+    }
+
+    onSignalSummary({
+      total: items.length,
+      buy: signalValues.filter((s) => s.signal === 'BUY').length,
+      hold: signalValues.filter((s) => s.signal === 'HOLD').length,
+      sell: signalValues.filter((s) => s.signal === 'SELL').length,
+      avgPE: pes.length > 0 ? pes.reduce((a, b) => a + b, 0) / pes.length : null,
+      sectors,
+    })
+  }, [items, quotes, onSignalSummary])
+
   const fetchQuotes = useCallback(async (tickers: string[]) => {
     if (tickers.length === 0) return
     setQuotesLoading(true)
@@ -44,7 +104,6 @@ export function WatchlistSection() {
     setQuotesLoading(false)
   }, [])
 
-  // Load watchlist from Supabase
   const fetchWatchlist = useCallback(async () => {
     const { data, error: fetchError } = await supabase
       .from('watchlist')
@@ -60,8 +119,6 @@ export function WatchlistSection() {
     const watchlistItems = (data ?? []) as WatchlistItem[]
     setItems(watchlistItems)
     setLoading(false)
-
-    // Fetch quotes for all tickers
     const tickers = watchlistItems.map((i) => i.ticker)
     fetchQuotes(tickers)
   }, [fetchQuotes])
@@ -118,20 +175,17 @@ export function WatchlistSection() {
     setNewTicker('')
     setAdding(false)
 
-    // Fetch quote for the new ticker and merge with existing quotes
     try {
       const res = await fetch(`/api/quotes?tickers=${ticker}`)
       if (res.ok) {
         const { quotes: newQuotes } = await res.json()
         setQuotes((prev) => ({ ...prev, ...newQuotes }))
 
-        // Update company_name if we got a real name from Yahoo
         const name = newQuotes[ticker]?.name
         if (name && name !== ticker) {
           setItems((prev) =>
             prev.map((i) => i.id === newItem.id ? { ...i, company_name: name } : i)
           )
-          // Also update in Supabase (fire and forget)
           supabase.from('watchlist').update({ company_name: name }).eq('id', newItem.id)
         }
       }
@@ -157,6 +211,8 @@ export function WatchlistSection() {
     setItems((prev) => prev.filter((r) => r.id !== id))
     setDeleting(null)
   }
+
+  const signals = computeSignals(items, quotes)
 
   return (
     <div className="space-y-3">
@@ -219,6 +275,7 @@ export function WatchlistSection() {
                   <th className="text-right px-4 py-3 text-xs font-mono text-text-muted uppercase tracking-widest hidden sm:table-cell">Chg%</th>
                   <th className="text-right px-4 py-3 text-xs font-mono text-text-muted uppercase tracking-widest hidden md:table-cell">Mkt Cap</th>
                   <th className="text-right px-4 py-3 text-xs font-mono text-text-muted uppercase tracking-widest hidden lg:table-cell">P/E</th>
+                  <th className="text-center px-4 py-3 text-xs font-mono text-text-muted uppercase tracking-widest">Signal</th>
                   <th className="px-4 py-3 w-16" />
                 </tr>
               </thead>
@@ -228,6 +285,7 @@ export function WatchlistSection() {
                   const isPos = (q?.changePct ?? 0) > 0
                   const isNeg = (q?.changePct ?? 0) < 0
                   const displayName = q?.name ?? (item.company_name !== item.ticker ? item.company_name : null)
+                  const sig = signals[item.ticker]
 
                   return (
                     <tr
@@ -291,6 +349,24 @@ export function WatchlistSection() {
                           <span className="font-mono tabular-nums text-xs text-text-secondary">
                             {q?.pe ? q.pe.toFixed(1) : '—'}
                           </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        {quotesLoading && !sig ? (
+                          <div className="h-5 w-12 bg-surface-3 rounded animate-pulse inline-block" />
+                        ) : sig ? (
+                          <span className={cn(
+                            'inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-bold border',
+                            signalColor(sig.signal),
+                            signalBg(sig.signal)
+                          )}>
+                            {sig.signal}
+                            {sig.upside != null && (
+                              <span className="opacity-70">{sig.upside > 0 ? '+' : ''}{sig.upside.toFixed(0)}%</span>
+                            )}
+                          </span>
+                        ) : (
+                          <span className="text-text-muted text-xs">—</span>
                         )}
                       </td>
                       <td className="px-4 py-3 text-right">

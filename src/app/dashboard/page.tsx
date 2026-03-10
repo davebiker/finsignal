@@ -3,7 +3,7 @@ import { fetchMarketIndices } from '@/lib/yahoo'
 import { getEarningsCalendar } from '@/lib/finnhub'
 import { format, addDays, startOfWeek, endOfWeek } from 'date-fns'
 import { MarketOverview } from './MarketOverview'
-import { WatchlistSection } from './WatchlistSection'
+import { WatchlistWithSummary } from './WatchlistWithSummary'
 import { EarningsThisWeek } from './EarningsThisWeek'
 import { RecentAnalyses } from './RecentAnalyses'
 import { Signal, TrendingUp, Calendar, Brain } from 'lucide-react'
@@ -77,7 +77,7 @@ export default async function DashboardPage() {
               Watchlist
             </h2>
           </div>
-          <WatchlistSection />
+          <WatchlistWithSummary />
         </div>
 
         {/* Right: Earnings this week (1/3) */}

@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { createSupabaseClient } from '@/lib/supabase'
+import { SUPERADMIN_EMAIL } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 import {
   LayoutDashboard, Calendar, Search, Signal, Menu, X, LogOut, User, Shield
@@ -50,7 +51,7 @@ export function Navigation() {
   if (pathname === '/login') return null
 
   const initials = user?.email?.slice(0, 2).toUpperCase() ?? '??'
-  const isAdmin = user?.email === 'david@beska.cz'
+  const isAdmin = user?.email === SUPERADMIN_EMAIL
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border">

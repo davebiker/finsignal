@@ -1,10 +1,12 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { RefreshCw, Check, AlertCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export function SyncButton({ ticker }: { ticker: string }) {
+  const router = useRouter()
   const [state, setState] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
 
   async function handleSync() {
@@ -13,8 +15,8 @@ export function SyncButton({ ticker }: { ticker: string }) {
       const res = await fetch(`/api/sync/${ticker}`, { method: 'POST' })
       if (res.ok) {
         setState('success')
+        router.refresh()
         setTimeout(() => setState('idle'), 2000)
-        window.location.reload()
       } else {
         setState('error')
         setTimeout(() => setState('idle'), 3000)

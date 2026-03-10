@@ -11,7 +11,10 @@ export default function PendingApprovalPage() {
   const [email, setEmail] = useState<string | null>(null)
 
   useEffect(() => {
+    let cancelled = false
+
     supabase.auth.getUser().then(({ data }) => {
+      if (cancelled) return
       if (!data.user) {
         router.push('/login')
         return
@@ -21,17 +24,27 @@ export default function PendingApprovalPage() {
 
     // Poll every 10 seconds to check if approved
     const interval = setInterval(async () => {
-      const res = await fetch('/api/profile')
-      if (res.ok) {
-        const { profile } = await res.json()
-        if (profile?.approved) {
-          router.push('/dashboard')
-          router.refresh()
+      if (cancelled) return
+      try {
+        const res = await fetch('/api/profile')
+        if (cancelled) return
+        if (res.ok) {
+          const { profile } = await res.json()
+          if (profile?.approved) {
+            clearInterval(interval)
+            router.push('/dashboard')
+            router.refresh()
+          }
         }
+      } catch {
+        // Silently ignore network errors during polling
       }
     }, 10000)
 
-    return () => clearInterval(interval)
+    return () => {
+      cancelled = true
+      clearInterval(interval)
+    }
   }, [])
 
   async function handleSignOut() {

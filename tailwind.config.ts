@@ -48,7 +48,7 @@ const config: Config = {
       animation: {
         'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
         'fade-in': 'fadeIn 0.5s ease-out',
-        'slide-up': 'slideUp 0.4s ease-out',
+        'slide-up': 'slideUp 0.4s ease-out both',
         'ticker': 'ticker 30s linear infinite',
       },
       keyframes: {

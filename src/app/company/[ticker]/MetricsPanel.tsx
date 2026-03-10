@@ -93,7 +93,7 @@ export function MetricsPanel({ quote, overview, profile, description }: Props) {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
         {categories.map((cat) => (
           <div key={cat} className="card p-4">
             <p className="stat-label mb-3">{cat}</p>

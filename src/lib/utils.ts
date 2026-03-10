@@ -44,7 +44,7 @@ export function getBeatMissLabel(
   estimate: number | null,
   threshold = 1
 ): BeatMissLabel {
-  if (actual == null || estimate == null) return 'n/a'
+  if (actual == null || estimate == null || estimate === 0) return 'n/a'
   const pct = ((actual - estimate) / Math.abs(estimate)) * 100
   if (pct > threshold) return 'beat'
   if (pct < -threshold) return 'miss'

@@ -1,8 +1,7 @@
 import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-
-const SUPERADMIN_EMAIL = 'david@beska.cz'
+import { SUPERADMIN_EMAIL } from '@/lib/constants'
 const PROTECTED_ROUTES = ['/dashboard', '/company', '/earnings-calendar']
 
 export async function middleware(req: NextRequest) {

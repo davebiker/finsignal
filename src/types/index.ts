@@ -104,6 +104,7 @@ export interface AiAnalysisResponse {
   summary: string
   sentiment: 'bullish' | 'neutral' | 'bearish'
   consensus_pt: number | null
+  long_term_recommendation: string | null
 }
 
 // ── API responses ────────────────────────────────────────────

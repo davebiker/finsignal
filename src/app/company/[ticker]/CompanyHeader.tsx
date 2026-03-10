@@ -89,9 +89,9 @@ export function CompanyHeader({ ticker, name, sector, exchange, quote, profile, 
         </div>
 
         {/* Price block */}
-        <div className="flex flex-col items-end gap-2">
-          <div className="text-right">
-            <div className="font-display text-3xl font-bold tabular-nums text-text-primary">
+        <div className="flex flex-col items-start sm:items-end gap-2">
+          <div className="sm:text-right">
+            <div className="font-display text-2xl sm:text-3xl font-bold tabular-nums text-text-primary">
               {price ? formatCurrency(price) : '—'}
             </div>
             {changePct != null && (
@@ -115,9 +115,9 @@ export function CompanyHeader({ ticker, name, sector, exchange, quote, profile, 
       {week52High > 0 && week52Low > 0 && (
         <div className="card p-4">
           <div className="flex items-center justify-between text-xs font-mono text-text-muted mb-2">
-            <span>52W Low: {formatCurrency(week52Low)}</span>
-            <span className="text-text-secondary">52-Week Range</span>
-            <span>52W High: {formatCurrency(week52High)}</span>
+            <span>{formatCurrency(week52Low)}</span>
+            <span className="text-text-secondary hidden sm:inline">52-Week Range</span>
+            <span>{formatCurrency(week52High)}</span>
           </div>
           <div className="relative h-2 bg-surface-3 rounded-full overflow-hidden">
             <div
