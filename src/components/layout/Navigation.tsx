@@ -6,7 +6,7 @@ import { useState, useEffect } from 'react'
 import { createSupabaseClient } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
 import {
-  LayoutDashboard, Calendar, Search, Signal, Menu, X, LogOut, User
+  LayoutDashboard, Calendar, Search, Signal, Menu, X, LogOut, User, Shield
 } from 'lucide-react'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
 
@@ -50,6 +50,7 @@ export function Navigation() {
   if (pathname === '/login') return null
 
   const initials = user?.email?.slice(0, 2).toUpperCase() ?? '??'
+  const isAdmin = user?.email === 'david@beska.cz'
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border">
@@ -82,6 +83,20 @@ export function Navigation() {
               {label}
             </Link>
           ))}
+          {isAdmin && (
+            <Link
+              href="/admin"
+              className={cn(
+                'flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-150',
+                pathname.startsWith('/admin')
+                  ? 'bg-accent-blue/10 text-accent-blue border border-accent-blue/20'
+                  : 'text-text-secondary hover:text-text-primary hover:bg-surface-2'
+              )}
+            >
+              <Shield className="w-3.5 h-3.5" />
+              Admin
+            </Link>
+          )}
         </nav>
 
         {/* Search */}
@@ -155,6 +170,21 @@ export function Navigation() {
               {label}
             </Link>
           ))}
+          {isAdmin && (
+            <Link
+              href="/admin"
+              onClick={() => setMobileOpen(false)}
+              className={cn(
+                'flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors',
+                pathname.startsWith('/admin')
+                  ? 'bg-accent-blue/10 text-accent-blue'
+                  : 'text-text-secondary'
+              )}
+            >
+              <Shield className="w-4 h-4" />
+              Admin
+            </Link>
+          )}
           <form onSubmit={handleSearch} className="pt-2">
             <input
               type="text"

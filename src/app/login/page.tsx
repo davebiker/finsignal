@@ -24,19 +24,33 @@ export default function LoginPage() {
     setSuccess(null)
 
     if (mode === 'signin') {
-      const { error } = await supabase.auth.signInWithPassword({ email, password })
-      if (error) {
-        setError(error.message)
-      } else {
-        router.push('/dashboard')
-        router.refresh()
+      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
+      if (signInError) {
+        setError(signInError.message)
+        setLoading(false)
+        return
       }
-    } else {
-      const { error } = await supabase.auth.signUp({ email, password })
-      if (error) {
-        setError(error.message)
+
+      // Check if user is approved
+      const res = await fetch('/api/profile')
+      if (res.ok) {
+        const { profile } = await res.json()
+        if (profile?.approved) {
+          router.push('/dashboard')
+        } else {
+          router.push('/pending')
+        }
       } else {
-        setSuccess('Check your email for a confirmation link.')
+        // Fallback — middleware will handle redirect
+        router.push('/dashboard')
+      }
+      router.refresh()
+    } else {
+      const { error: signUpError } = await supabase.auth.signUp({ email, password })
+      if (signUpError) {
+        setError(signUpError.message)
+      } else {
+        setSuccess('Account created! Check your email for confirmation, then wait for admin approval.')
       }
     }
 
@@ -144,6 +158,12 @@ export default function LoginPage() {
             <>Already have an account? <button onClick={() => setMode('signin')} className="text-accent-green hover:underline">Sign in</button></>
           )}
         </p>
+
+        {mode === 'signup' && (
+          <p className="text-center text-[10px] text-text-muted">
+            New accounts require admin approval before accessing the terminal.
+          </p>
+        )}
       </div>
     </div>
   )

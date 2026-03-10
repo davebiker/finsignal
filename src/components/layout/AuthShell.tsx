@@ -6,7 +6,7 @@ import { Ticker } from './Ticker'
 
 export function AuthShell() {
   const pathname = usePathname()
-  if (pathname === '/login') return null
+  if (pathname === '/login' || pathname === '/pending') return null
 
   return (
     <>
