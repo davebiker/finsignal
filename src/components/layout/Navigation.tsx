@@ -1,12 +1,14 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { useState } from 'react'
+import { usePathname, useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { createSupabaseClient } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
 import {
-  LayoutDashboard, Calendar, Search, Signal, Menu, X, TrendingUp
+  LayoutDashboard, Calendar, Search, Signal, Menu, X, LogOut, User
 } from 'lucide-react'
+import type { User as SupabaseUser } from '@supabase/supabase-js'
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -15,8 +17,21 @@ const navItems = [
 
 export function Navigation() {
   const pathname = usePathname()
+  const router = useRouter()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [user, setUser] = useState<SupabaseUser | null>(null)
+  const supabase = createSupabaseClient()
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setUser(data.user))
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null)
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault()
@@ -25,10 +40,21 @@ export function Navigation() {
     }
   }
 
+  async function handleSignOut() {
+    await supabase.auth.signOut()
+    router.push('/login')
+    router.refresh()
+  }
+
+  // Don't show nav on login page
+  if (pathname === '/login') return null
+
+  const initials = user?.email?.slice(0, 2).toUpperCase() ?? '??'
+
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
-        
+
         {/* Logo */}
         <Link href="/dashboard" className="flex items-center gap-2.5 shrink-0 group">
           <div className="w-8 h-8 rounded-lg bg-accent-green/10 border border-accent-green/30 flex items-center justify-center group-hover:bg-accent-green/20 transition-colors">
@@ -79,6 +105,27 @@ export function Navigation() {
             <span className="text-xs font-mono text-accent-green">LIVE</span>
           </div>
 
+          {/* User menu */}
+          {user && (
+            <div className="flex items-center gap-2">
+              <div className="hidden sm:flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-surface-2 border border-border">
+                <div className="w-6 h-6 rounded-full bg-accent-blue/20 border border-accent-blue/30 flex items-center justify-center">
+                  <span className="text-[9px] font-mono font-bold text-accent-blue">{initials}</span>
+                </div>
+                <span className="text-xs font-mono text-text-secondary truncate max-w-[120px]">
+                  {user.email}
+                </span>
+              </div>
+              <button
+                onClick={handleSignOut}
+                className="btn-ghost p-1.5"
+                title="Sign out"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+
           {/* Mobile menu toggle */}
           <button
             className="md:hidden btn-ghost p-1.5"
@@ -117,6 +164,19 @@ export function Navigation() {
               className="terminal-input w-full"
             />
           </form>
+          {user && (
+            <div className="pt-2 border-t border-border mt-2">
+              <div className="flex items-center justify-between px-3 py-2">
+                <div className="flex items-center gap-2">
+                  <User className="w-3.5 h-3.5 text-text-muted" />
+                  <span className="text-xs text-text-secondary truncate">{user.email}</span>
+                </div>
+                <button onClick={handleSignOut} className="text-xs text-accent-red hover:underline font-mono">
+                  Sign out
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </header>

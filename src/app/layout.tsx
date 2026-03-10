@@ -1,8 +1,9 @@
+export const dynamic = 'force-dynamic'
+
 import type { Metadata } from 'next'
 import { DM_Sans, Space_Grotesk, JetBrains_Mono } from 'next/font/google'
 import './globals.css'
-import { Navigation } from '@/components/layout/Navigation'
-import { Ticker } from '@/components/layout/Ticker'
+import { AuthShell } from '@/components/layout/AuthShell'
 
 const dmSans = DM_Sans({
   subsets: ['latin'],
@@ -41,8 +42,7 @@ export default function RootLayout({
         {/* Top glow */}
         <div className="fixed top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-accent-green/40 to-transparent z-10" />
 
-        <Navigation />
-        <Ticker />
+        <AuthShell />
         
         <main className="relative z-10 pt-[104px] min-h-screen">
           {children}

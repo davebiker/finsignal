@@ -90,10 +90,10 @@ export function EarningsTable({ ticker, earnings }: Props) {
                       {formatDate(row.report_date)}
                     </td>
                     <td className="px-4 py-3 text-right text-xs font-mono tabular-nums text-text-primary whitespace-nowrap">
-                      {formatLargeNumber(row.revenue_actual)}
+                      {row.revenue_actual ? formatLargeNumber(row.revenue_actual) : '—'}
                     </td>
                     <td className="px-4 py-3 text-right text-xs font-mono tabular-nums text-text-secondary whitespace-nowrap">
-                      {formatLargeNumber(row.revenue_estimate)}
+                      {row.revenue_estimate ? formatLargeNumber(row.revenue_estimate) : '—'}
                     </td>
                     <td className="px-4 py-3 text-right whitespace-nowrap">
                       <div className="flex items-center justify-end gap-1.5">
