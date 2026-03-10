@@ -1,6 +1,21 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  serverExternalPackages: ['yahoo-finance2'],
+  experimental: {
+    serverComponentsExternalPackages: ['yahoo-finance2'],
+  },
+  webpack: (config) => {
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      '@gadicc/fetch-mock-cache': false,
+      '@gadicc/fetch-mock-cache/engines/fs': false,
+      '@gadicc/fetch-mock-cache/runtimes/deno.ts': false,
+      '@gadicc/fetch-mock-cache/stores/fs.ts': false,
+      '@std/testing/mock': false,
+      '@std/testing/bdd': false,
+      '@std/testing': false,
+    };
+    return config;
+  },
 };
 
 module.exports = nextConfig;
