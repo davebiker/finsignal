@@ -19,6 +19,7 @@ interface Metric {
   label: string
   value: string
   category: string
+  badge?: { text: string; color: string; bg: string } | null
 }
 
 export function MetricsPanel({ quote, overview, profile, description, earnings = [], relativeStrength, stockYtd }: Props) {
@@ -90,6 +91,16 @@ export function MetricsPanel({ quote, overview, profile, description, earnings =
         return !isNaN(raw) && raw > 0 ? formatPercent(raw * 100) : '—'
       })(),
       category: 'Per Share',
+      badge: (() => {
+        const divYield = Number(overview?.DividendYield)
+        if (isNaN(divYield) || divYield <= 0) return null
+        const payout = Number(overview?.PayoutRatio)
+        if (isNaN(payout) || payout <= 0) return null
+        const pctPayout = payout * 100
+        if (pctPayout < 40) return { text: 'Safe', color: 'text-accent-green', bg: 'bg-accent-green-dim border-accent-green/20' }
+        if (pctPayout <= 60) return { text: 'Moderate', color: 'text-accent-gold', bg: 'bg-accent-gold-dim border-accent-gold/20' }
+        return { text: 'At Risk', color: 'text-accent-red', bg: 'bg-accent-red-dim border-accent-red/20' }
+      })(),
     },
     {
       label: 'Analyst Target',
@@ -146,9 +157,20 @@ export function MetricsPanel({ quote, overview, profile, description, earnings =
                 .map((m) => (
                   <div key={m.label} className="flex items-center justify-between gap-2">
                     <span className="text-xs text-text-secondary">{m.label}</span>
-                    <span className="text-xs font-mono tabular-nums text-text-primary font-semibold">
-                      {m.value}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      {m.badge && (
+                        <span className={cn(
+                          'inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-mono font-semibold border',
+                          m.badge.color,
+                          m.badge.bg
+                        )}>
+                          {m.badge.text}
+                        </span>
+                      )}
+                      <span className="text-xs font-mono tabular-nums text-text-primary font-semibold">
+                        {m.value}
+                      </span>
+                    </div>
                   </div>
                 ))}
             </div>

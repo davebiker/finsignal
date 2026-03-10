@@ -91,6 +91,7 @@ export interface AVOverview {
   AnalystRatingHold: string
   AnalystRatingSell: string
   AnalystRatingStrongSell: string
+  PayoutRatio: string
   '52WeekHigh': string
   '52WeekLow': string
 }
