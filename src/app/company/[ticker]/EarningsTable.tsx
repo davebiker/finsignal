@@ -59,7 +59,7 @@ export function EarningsTable({ ticker, earnings }: Props) {
 
       {!hasData ? (
         <div className="p-8 text-center text-text-muted text-sm">
-          No earnings data. Click "Sync Data" to load from FMP.
+          No earnings data. Click "Sync Data" to fetch earnings history.
         </div>
       ) : view === 'table' ? (
         <div className="overflow-x-auto">

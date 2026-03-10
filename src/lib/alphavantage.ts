@@ -86,6 +86,11 @@ export interface AVOverview {
   EVToEBITDA: string
   PriceToBookRatio: string
   AnalystTargetPrice: string
+  AnalystRatingStrongBuy: string
+  AnalystRatingBuy: string
+  AnalystRatingHold: string
+  AnalystRatingSell: string
+  AnalystRatingStrongSell: string
   '52WeekHigh': string
   '52WeekLow': string
 }

@@ -1,4 +1,3 @@
-import { FMPAnalystRec } from '@/lib/fmp'
 import { AVOverview } from '@/lib/alphavantage'
 import { formatCurrency } from '@/lib/utils'
 import { cn } from '@/lib/utils'
@@ -6,21 +5,28 @@ import { Users, Target } from 'lucide-react'
 
 interface Props {
   ticker: string
-  analystRec: FMPAnalystRec | null
   overview: AVOverview | null
 }
 
-export function AnalystPanel({ ticker, analystRec, overview }: Props) {
-  const targetPrice = overview?.AnalystTargetPrice ? Number(overview.AnalystTargetPrice) : null
+function safeInt(val: string | undefined | null): number {
+  const n = parseInt(val ?? '', 10)
+  return isNaN(n) ? 0 : n
+}
 
-  const buy = analystRec?.analystRatingbuy ?? 0
-  const strongBuy = analystRec?.analystRatingStrongBuy ?? 0
-  const hold = analystRec?.analystRatingHold ?? 0
-  const sell = analystRec?.analystRatingSell ?? 0
-  const strongSell = analystRec?.analystRatingStrongSell ?? 0
-  const total = buy + strongBuy + hold + sell + strongSell
+export function AnalystPanel({ ticker, overview }: Props) {
+  const targetPrice = overview?.AnalystTargetPrice
+    ? Number(overview.AnalystTargetPrice)
+    : null
+  const validTarget = targetPrice && !isNaN(targetPrice) && targetPrice > 0
 
-  const positiveCount = buy + strongBuy
+  const strongBuy = safeInt(overview?.AnalystRatingStrongBuy)
+  const buy = safeInt(overview?.AnalystRatingBuy)
+  const hold = safeInt(overview?.AnalystRatingHold)
+  const sell = safeInt(overview?.AnalystRatingSell)
+  const strongSell = safeInt(overview?.AnalystRatingStrongSell)
+  const total = strongBuy + buy + hold + sell + strongSell
+
+  const positiveCount = strongBuy + buy
   const neutralCount = hold
   const negativeCount = sell + strongSell
 
@@ -28,8 +34,8 @@ export function AnalystPanel({ ticker, analystRec, overview }: Props) {
 
   return (
     <div className="space-y-4">
-      {/* Consensus */}
-      {targetPrice && (
+      {/* Consensus PT */}
+      {validTarget && (
         <div className="card p-4">
           <div className="flex items-center gap-2 mb-3">
             <Target className="w-3.5 h-3.5 text-text-secondary" />
@@ -43,7 +49,7 @@ export function AnalystPanel({ ticker, analystRec, overview }: Props) {
       )}
 
       {/* Ratings distribution */}
-      {analystRec && total > 0 && (
+      {total > 0 && (
         <div className="card p-4">
           <div className="flex items-center gap-2 mb-3">
             <Users className="w-3.5 h-3.5 text-text-secondary" />
@@ -60,6 +66,25 @@ export function AnalystPanel({ ticker, analystRec, overview }: Props) {
                sentimentPct && sentimentPct < 40 ? 'BEARISH' : 'NEUTRAL'}
             </p>
             <p className="text-xs text-text-muted">{total} analysts covering</p>
+          </div>
+
+          {/* Stacked bar */}
+          <div className="h-3 rounded-full overflow-hidden flex mb-4">
+            {strongBuy > 0 && (
+              <div className="bg-accent-green" style={{ width: `${(strongBuy / total) * 100}%` }} />
+            )}
+            {buy > 0 && (
+              <div className="bg-emerald-500" style={{ width: `${(buy / total) * 100}%` }} />
+            )}
+            {hold > 0 && (
+              <div className="bg-accent-gold" style={{ width: `${(hold / total) * 100}%` }} />
+            )}
+            {sell > 0 && (
+              <div className="bg-orange-500" style={{ width: `${(sell / total) * 100}%` }} />
+            )}
+            {strongSell > 0 && (
+              <div className="bg-accent-red" style={{ width: `${(strongSell / total) * 100}%` }} />
+            )}
           </div>
 
           <div className="space-y-2">
@@ -95,10 +120,10 @@ export function AnalystPanel({ ticker, analystRec, overview }: Props) {
         </div>
       )}
 
-      {!analystRec && !targetPrice && (
+      {total === 0 && !validTarget && (
         <div className="card p-6 text-center">
           <p className="text-sm text-text-muted">No analyst data available.</p>
-          <p className="text-xs text-text-muted mt-1">Click "Sync Data" to fetch from FMP.</p>
+          <p className="text-xs text-text-muted mt-1">Analyst data from Alpha Vantage OVERVIEW.</p>
         </div>
       )}
     </div>

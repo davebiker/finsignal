@@ -62,9 +62,10 @@ export function MetricsPanel({ quote, overview, profile, description }: Props) {
     },
     {
       label: 'Profit Margin',
-      value: overview?.ProfitMargin
-        ? formatPercent(Number(overview.ProfitMargin) * 100)
-        : '—',
+      value: (() => {
+        const raw = Number(overview?.ProfitMargin)
+        return !isNaN(raw) && raw !== 0 ? formatPercent(raw * 100) : '—'
+      })(),
       category: 'Financials',
     },
     // Per share
@@ -75,9 +76,10 @@ export function MetricsPanel({ quote, overview, profile, description }: Props) {
     },
     {
       label: 'Dividend Yield',
-      value: overview?.DividendYield
-        ? formatPercent(Number(overview.DividendYield) * 100)
-        : '—',
+      value: (() => {
+        const raw = Number(overview?.DividendYield)
+        return !isNaN(raw) && raw > 0 ? formatPercent(raw * 100) : '—'
+      })(),
       category: 'Per Share',
     },
     {

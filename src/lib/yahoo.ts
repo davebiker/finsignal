@@ -19,42 +19,115 @@ export interface YFQuote {
   exchange?: string
 }
 
-// ── v8 chart API (primary — no auth/crumb needed) ──────────
+const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
 
-const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+// ── Cookie cache for EU consent ─────────────────────────────
+// Yahoo redirects to a consent page for EU-based servers (Vercel).
+// We obtain a consent cookie once and reuse it.
+
+let cachedCookie: { value: string; ts: number } | null = null
+const COOKIE_TTL = 10 * 60 * 1000 // 10 minutes
+
+async function getYahooCookie(): Promise<string> {
+  if (cachedCookie && Date.now() - cachedCookie.ts < COOKIE_TTL) {
+    return cachedCookie.value
+  }
+
+  try {
+    // Hit the Yahoo consent page to get A1/A3 cookies
+    const res = await fetch('https://fc.yahoo.com', {
+      headers: { 'User-Agent': UA },
+      redirect: 'manual',
+    })
+    const setCookies = res.headers.getSetCookie?.() ?? []
+    const cookie = setCookies.map((c) => c.split(';')[0]).join('; ')
+
+    if (cookie) {
+      cachedCookie = { value: cookie, ts: Date.now() }
+      return cookie
+    }
+  } catch (err) {
+    console.warn('Yahoo cookie fetch failed:', err)
+  }
+
+  // Fallback: try with a synthetic consent cookie
+  const fallback = 'A1=d=AQABBCFe_mYCEE&S=AQAAAiK; A3=d=AQABBCFe_mYCEE&S=AQAAAiK'
+  cachedCookie = { value: fallback, ts: Date.now() }
+  return fallback
+}
+
+// ── v8 chart fetcher ────────────────────────────────────────
 
 async function yfFetchChart(symbol: string): Promise<YFQuote | null> {
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=2d&interval=1d&includePrePost=false`
-  const res = await fetch(url, {
-    headers: { 'User-Agent': UA },
-    cache: 'no-store',
-  })
+  const cookie = await getYahooCookie()
+  const encoded = encodeURIComponent(symbol)
 
-  if (!res.ok) return null
-  const json = await res.json()
-  const meta = json?.chart?.result?.[0]?.meta
-  if (!meta) return null
+  // Try both query hosts
+  const hosts = [
+    'https://query1.finance.yahoo.com',
+    'https://query2.finance.yahoo.com',
+  ]
 
-  const price = meta.regularMarketPrice
-  const prevClose = meta.chartPreviousClose ?? meta.previousClose
-  const change = price != null && prevClose != null ? price - prevClose : undefined
-  const changePct = change != null && prevClose && prevClose !== 0
-    ? (change / prevClose) * 100
-    : undefined
+  let lastError = ''
 
-  return {
-    symbol: meta.symbol ?? symbol,
-    shortName: meta.shortName,
-    longName: meta.longName,
-    regularMarketPrice: price,
-    regularMarketChange: change,
-    regularMarketChangePercent: changePct,
-    regularMarketVolume: meta.regularMarketVolume,
-    fiftyTwoWeekHigh: meta.fiftyTwoWeekHigh,
-    fiftyTwoWeekLow: meta.fiftyTwoWeekLow,
-    marketCap: meta.marketCap,
-    exchange: meta.exchangeName,
+  for (const host of hosts) {
+    try {
+      const url = `${host}/v8/finance/chart/${encoded}?interval=1d&range=1d`
+      const res = await fetch(url, {
+        headers: {
+          'User-Agent': UA,
+          Cookie: cookie,
+        },
+        cache: 'no-store',
+      })
+
+      if (!res.ok) {
+        lastError = `${host} HTTP ${res.status}`
+        // Invalidate cookie on 401/403 so next call retries
+        if (res.status === 401 || res.status === 403) cachedCookie = null
+        continue
+      }
+
+      const json = await res.json()
+      const result = json?.chart?.result?.[0]
+      const meta = result?.meta
+      if (!meta?.regularMarketPrice) {
+        lastError = `${host} no price in meta`
+        continue
+      }
+
+      const price: number = meta.regularMarketPrice
+      const prevClose: number | undefined =
+        meta.chartPreviousClose ?? meta.previousClose
+
+      let change: number | undefined
+      let changePct: number | undefined
+
+      if (prevClose != null && prevClose !== 0) {
+        change = price - prevClose
+        changePct = (change / prevClose) * 100
+      }
+
+      return {
+        symbol: meta.symbol ?? symbol,
+        shortName: meta.shortName,
+        longName: meta.longName,
+        regularMarketPrice: price,
+        regularMarketChange: change,
+        regularMarketChangePercent: changePct,
+        regularMarketVolume: meta.regularMarketVolume,
+        fiftyTwoWeekHigh: meta.fiftyTwoWeekHigh,
+        fiftyTwoWeekLow: meta.fiftyTwoWeekLow,
+        marketCap: meta.marketCap,
+        exchange: meta.exchangeName,
+      }
+    } catch (err) {
+      lastError = `${host}: ${err instanceof Error ? err.message : err}`
+    }
   }
+
+  console.error(`Yahoo Finance failed for ${symbol}: ${lastError}`)
+  return null
 }
 
 // ── Public API ──────────────────────────────────────────────
