@@ -21,7 +21,7 @@ export function MetricsPanel({ quote, overview, profile, description }: Props) {
     // Valuation
     {
       label: 'Market Cap',
-      value: formatLargeNumber(quote?.marketCap ?? Number(overview?.MarketCapitalization ?? 0) || null),
+      value: formatLargeNumber((quote?.marketCap ?? Number(overview?.MarketCapitalization ?? 0)) || null),
       category: 'Valuation',
     },
     {
