@@ -5,7 +5,7 @@ import { AVOverview } from '@/lib/alphavantage'
 import {
   cn, formatCurrency, formatPercent, formatLargeNumber, changeColor, sectorColor
 } from '@/lib/utils'
-import { TrendingUp, TrendingDown, ArrowLeft, RefreshCw, Globe } from 'lucide-react'
+import { TrendingUp, TrendingDown, ArrowLeft, RefreshCw, Globe, AlertTriangle, Target } from 'lucide-react'
 import { SyncButton } from './SyncButton'
 
 interface Props {
@@ -135,6 +135,30 @@ export function CompanyHeader({ ticker, name, sector, exchange, quote, profile, 
             <p className="text-center text-xs font-mono text-text-secondary mt-1.5">
               Current: {formatCurrency(price)} · {range52Pct?.toFixed(1)}% from 52W low
             </p>
+          )}
+
+          {/* 52W Position Signal */}
+          {range52Pct != null && range52Pct <= 30 && (
+            <div className="mt-3 flex items-center gap-2 px-3 py-2 rounded-lg border bg-accent-green-dim border-accent-green/20">
+              <Target className="w-4 h-4 text-accent-green shrink-0" />
+              <span className="text-sm font-mono font-semibold text-accent-green">
+                Near 52W Low — Potential Opportunity
+              </span>
+              <span className="text-xs text-accent-green/70 font-mono ml-auto">
+                {range52Pct.toFixed(1)}% of range
+              </span>
+            </div>
+          )}
+          {range52Pct != null && range52Pct >= 70 && (
+            <div className="mt-3 flex items-center gap-2 px-3 py-2 rounded-lg border bg-accent-gold-dim border-accent-gold/20">
+              <AlertTriangle className="w-4 h-4 text-accent-gold shrink-0" />
+              <span className="text-sm font-mono font-semibold text-accent-gold">
+                Near 52W High — Caution
+              </span>
+              <span className="text-xs text-accent-gold/70 font-mono ml-auto">
+                {range52Pct.toFixed(1)}% of range
+              </span>
+            </div>
           )}
         </div>
       )}

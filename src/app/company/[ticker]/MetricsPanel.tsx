@@ -1,13 +1,18 @@
-import { CompanyQuote } from '@/types'
+import { CompanyQuote, EarningsSnapshot } from '@/types'
 import { FMPProfile } from '@/lib/fmp'
 import { AVOverview } from '@/lib/alphavantage'
 import { formatLargeNumber, formatNumber, formatPercent } from '@/lib/utils'
+import { calculateEpsTrend, epsTrendLabel, epsTrendColor, epsTrendBg } from '@/lib/signals'
+import { cn } from '@/lib/utils'
 
 interface Props {
   quote: CompanyQuote | null
   overview: AVOverview | null
   profile: FMPProfile | null
   description: string | null
+  earnings?: EarningsSnapshot[]
+  relativeStrength?: number | null
+  stockYtd?: number | null
 }
 
 interface Metric {
@@ -16,7 +21,11 @@ interface Metric {
   category: string
 }
 
-export function MetricsPanel({ quote, overview, profile, description }: Props) {
+export function MetricsPanel({ quote, overview, profile, description, earnings = [], relativeStrength, stockYtd }: Props) {
+  // Calculate EPS estimate trend from earnings data (already sorted newest-first)
+  const epsEstimates = earnings.map((e) => e.eps_estimate)
+  const epsTrend = calculateEpsTrend(epsEstimates)
+
   const metrics: Metric[] = [
     // Valuation
     {
@@ -93,6 +102,40 @@ export function MetricsPanel({ quote, overview, profile, description }: Props) {
 
   return (
     <div className="space-y-4">
+      {/* Signal badges */}
+      <div className="flex flex-wrap gap-3">
+        {/* EPS Estimate Trend badge */}
+        {epsTrend && (
+          <div className={cn(
+            'inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-mono font-semibold',
+            epsTrendColor(epsTrend),
+            epsTrendBg(epsTrend)
+          )}>
+            <span>{epsTrendLabel(epsTrend)}</span>
+            <span className="text-xs opacity-70 font-normal">
+              (based on last {Math.min(earnings.filter(e => e.eps_estimate != null).length, 3)} quarters)
+            </span>
+          </div>
+        )}
+
+        {/* Relative Strength vs S&P 500 */}
+        {relativeStrength != null && (
+          <div className={cn(
+            'inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-mono font-semibold',
+            relativeStrength > 0 ? 'text-accent-green bg-accent-green-dim border-accent-green/20' :
+            relativeStrength < 0 ? 'text-accent-red bg-accent-red-dim border-accent-red/20' :
+            'text-accent-gold bg-accent-gold-dim border-accent-gold/20'
+          )}>
+            <span>RS vs S&P: {relativeStrength > 0 ? '+' : ''}{relativeStrength.toFixed(1)}%</span>
+            {stockYtd != null && (
+              <span className="text-xs opacity-70 font-normal">
+                (YTD {stockYtd > 0 ? '+' : ''}{stockYtd.toFixed(1)}%)
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
         {categories.map((cat) => (
           <div key={cat} className="card p-4">

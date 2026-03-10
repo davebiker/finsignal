@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation'
 import { createSupabaseAdmin } from '@/lib/supabase'
 import { getCompanyProfile } from '@/lib/fmp'
 import { getCompanyOverview } from '@/lib/alphavantage'
-import { fetchYahooQuote, yfQuoteToCompanyQuote } from '@/lib/yahoo'
+import { fetchYahooQuote, fetchYtdChange, yfQuoteToCompanyQuote } from '@/lib/yahoo'
 import { CompanyHeader } from './CompanyHeader'
 import { EarningsTable } from './EarningsTable'
 import { MetricsPanel } from './MetricsPanel'
@@ -20,7 +20,7 @@ export default async function CompanyPage({ params }: Props) {
   const supabase = createSupabaseAdmin()
 
   // Parallel data fetching
-  const [quoteResult, profileResult, overviewResult, earningsResult, analysisResult] =
+  const [quoteResult, profileResult, overviewResult, earningsResult, analysisResult, ytdResult, spYtdResult] =
     await Promise.allSettled([
       fetchYahooQuote(ticker),
       getCompanyProfile(ticker),
@@ -39,6 +39,8 @@ export default async function CompanyPage({ params }: Props) {
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle(),
+      fetchYtdChange(ticker),
+      fetchYtdChange('^GSPC'),
     ])
 
   const quote = quoteResult.status === 'fulfilled' && quoteResult.value
@@ -49,6 +51,9 @@ export default async function CompanyPage({ params }: Props) {
   const overview = overviewResult.status === 'fulfilled' ? overviewResult.value : null
   const earnings = earningsResult.status === 'fulfilled' ? (earningsResult.value.data ?? []) : []
   const analysis = analysisResult.status === 'fulfilled' ? analysisResult.value.data : null
+  const stockYtd = ytdResult.status === 'fulfilled' ? ytdResult.value : null
+  const spYtd = spYtdResult.status === 'fulfilled' ? spYtdResult.value : null
+  const relativeStrength = stockYtd != null && spYtd != null ? stockYtd - spYtd : null
 
   // If we have no data at all, 404
   if (!quote && !profile && !overview) {
@@ -82,6 +87,9 @@ export default async function CompanyPage({ params }: Props) {
         overview={overview}
         profile={profile}
         description={description}
+        earnings={earnings}
+        relativeStrength={relativeStrength}
+        stockYtd={stockYtd}
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

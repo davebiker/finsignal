@@ -130,6 +130,51 @@ async function yfFetchChart(symbol: string): Promise<YFQuote | null> {
   return null
 }
 
+// ── YTD performance fetcher ──────────────────────────────────
+
+export async function fetchYtdChange(symbol: string): Promise<number | null> {
+  const cookie = await getYahooCookie()
+  const encoded = encodeURIComponent(symbol)
+
+  const hosts = [
+    'https://query1.finance.yahoo.com',
+    'https://query2.finance.yahoo.com',
+  ]
+
+  for (const host of hosts) {
+    try {
+      const url = `${host}/v8/finance/chart/${encoded}?interval=1d&range=ytd`
+      const res = await fetch(url, {
+        headers: { 'User-Agent': UA, Cookie: cookie },
+        cache: 'no-store',
+      })
+
+      if (!res.ok) {
+        if (res.status === 401 || res.status === 403) cachedCookie = null
+        continue
+      }
+
+      const json = await res.json()
+      const result = json?.chart?.result?.[0]
+      const meta = result?.meta
+      const closes = result?.indicators?.quote?.[0]?.close as number[] | undefined
+
+      if (!meta?.regularMarketPrice || !closes?.length) continue
+
+      // First close of the year
+      const firstClose = closes.find((c: number | null) => c != null && c > 0)
+      if (!firstClose) continue
+
+      const currentPrice: number = meta.regularMarketPrice
+      return ((currentPrice - firstClose) / firstClose) * 100
+    } catch {
+      continue
+    }
+  }
+
+  return null
+}
+
 // ── Public API ──────────────────────────────────────────────
 
 export async function fetchYahooQuote(ticker: string): Promise<YFQuote | null> {

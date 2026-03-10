@@ -1,6 +1,54 @@
 // ── Value Score / Investment Signal Engine ────────────────────
 
 export type ValueSignal = 'BUY' | 'HOLD' | 'SELL'
+export type EpsTrend = 'rising' | 'falling' | 'stable'
+
+/** Calculate EPS estimate trend from recent quarters (newest first). */
+export function calculateEpsTrend(
+  estimates: (number | null)[] // newest-first, at least 2 values needed
+): EpsTrend | null {
+  const valid = estimates.filter((v): v is number => v != null)
+  if (valid.length < 2) return null
+
+  // Compare consecutive pairs (newest vs older)
+  // valid[0] = most recent, valid[1] = previous, etc.
+  let rising = 0
+  let falling = 0
+  const count = Math.min(valid.length - 1, 2) // up to 2 comparisons (3 quarters)
+  for (let i = 0; i < count; i++) {
+    const diff = valid[i] - valid[i + 1]
+    if (diff > 0.005) rising++
+    else if (diff < -0.005) falling++
+  }
+
+  if (rising > 0 && falling === 0) return 'rising'
+  if (falling > 0 && rising === 0) return 'falling'
+  return 'stable'
+}
+
+export function epsTrendLabel(trend: EpsTrend): string {
+  switch (trend) {
+    case 'rising': return '↑ Rising Estimates'
+    case 'falling': return '↓ Falling Estimates'
+    case 'stable': return '→ Stable'
+  }
+}
+
+export function epsTrendColor(trend: EpsTrend): string {
+  switch (trend) {
+    case 'rising': return 'text-accent-green'
+    case 'falling': return 'text-accent-red'
+    case 'stable': return 'text-accent-gold'
+  }
+}
+
+export function epsTrendBg(trend: EpsTrend): string {
+  switch (trend) {
+    case 'rising': return 'bg-accent-green-dim border-accent-green/20'
+    case 'falling': return 'bg-accent-red-dim border-accent-red/20'
+    case 'stable': return 'bg-accent-gold-dim border-accent-gold/20'
+  }
+}
 
 export interface SignalInput {
   price: number | null

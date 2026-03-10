@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createSupabaseClient } from '@/lib/supabase'
 import { cn, formatCurrency, formatPercent, formatLargeNumber } from '@/lib/utils'
-import { calculateSignal, signalColor, signalBg, type ValueSignal } from '@/lib/signals'
+import { calculateSignal, signalColor, signalBg, epsTrendLabel, epsTrendColor, epsTrendBg, type ValueSignal, type EpsTrend } from '@/lib/signals'
 import { Plus, TrendingUp, TrendingDown, ChevronRight, X, Loader2 } from 'lucide-react'
 import type { WatchlistItem } from '@/types'
 
@@ -17,6 +17,10 @@ interface QuoteData {
   analystTarget: number | null
   sector: string | null
   epsBeatRatio: number | null
+  epsTrend: EpsTrend | null
+  ytdPct: number | null
+  relativeStrength: number | null
+  week52Pct: number | null
 }
 
 // Expose signal summary for PortfolioSummary to consume
@@ -275,6 +279,8 @@ export function WatchlistSection({ onSignalSummary }: Props) {
                   <th className="text-right px-4 py-3 text-xs font-mono text-text-muted uppercase tracking-widest hidden sm:table-cell">Chg%</th>
                   <th className="text-right px-4 py-3 text-xs font-mono text-text-muted uppercase tracking-widest hidden md:table-cell">Mkt Cap</th>
                   <th className="text-right px-4 py-3 text-xs font-mono text-text-muted uppercase tracking-widest hidden lg:table-cell">P/E</th>
+                  <th className="text-right px-4 py-3 text-xs font-mono text-text-muted uppercase tracking-widest hidden lg:table-cell">RS vs S&P</th>
+                  <th className="text-right px-4 py-3 text-xs font-mono text-text-muted uppercase tracking-widest hidden md:table-cell">52W Pos</th>
                   <th className="text-center px-4 py-3 text-xs font-mono text-text-muted uppercase tracking-widest">Signal</th>
                   <th className="px-4 py-3 w-16" />
                 </tr>
@@ -303,7 +309,18 @@ export function WatchlistSection({ onSignalSummary }: Props) {
                             {item.ticker.slice(0, 2)}
                           </div>
                           <div>
-                            <p className="font-mono font-semibold text-sm text-text-primary">{item.ticker}</p>
+                            <div className="flex items-center gap-2">
+                              <p className="font-mono font-semibold text-sm text-text-primary">{item.ticker}</p>
+                              {q?.epsTrend && (
+                                <span className={cn(
+                                  'inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-mono font-semibold border',
+                                  epsTrendColor(q.epsTrend),
+                                  epsTrendBg(q.epsTrend)
+                                )}>
+                                  {epsTrendLabel(q.epsTrend)}
+                                </span>
+                              )}
+                            </div>
                             {displayName && (
                               <p className="text-xs text-text-muted truncate max-w-[140px]">{displayName}</p>
                             )}
@@ -349,6 +366,34 @@ export function WatchlistSection({ onSignalSummary }: Props) {
                           <span className="font-mono tabular-nums text-xs text-text-secondary">
                             {q?.pe ? q.pe.toFixed(1) : '—'}
                           </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-right hidden lg:table-cell">
+                        {quotesLoading && !q ? (
+                          <div className="h-4 w-12 bg-surface-3 rounded animate-pulse inline-block" />
+                        ) : q?.relativeStrength != null ? (
+                          <span className={cn(
+                            'font-mono tabular-nums text-xs font-semibold',
+                            q.relativeStrength > 0 ? 'text-accent-green' : q.relativeStrength < 0 ? 'text-accent-red' : 'text-text-secondary'
+                          )}>
+                            {q.relativeStrength > 0 ? '+' : ''}{q.relativeStrength.toFixed(1)}%
+                          </span>
+                        ) : (
+                          <span className="font-mono tabular-nums text-xs text-text-muted">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-right hidden md:table-cell">
+                        {quotesLoading && !q ? (
+                          <div className="h-4 w-14 bg-surface-3 rounded animate-pulse inline-block" />
+                        ) : q?.week52Pct != null ? (
+                          <span className={cn(
+                            'font-mono tabular-nums text-xs font-semibold',
+                            q.week52Pct <= 30 ? 'text-accent-green' : q.week52Pct >= 70 ? 'text-accent-gold' : 'text-text-secondary'
+                          )}>
+                            {q.week52Pct.toFixed(0)}%
+                          </span>
+                        ) : (
+                          <span className="font-mono tabular-nums text-xs text-text-muted">—</span>
                         )}
                       </td>
                       <td className="px-4 py-3 text-center">
