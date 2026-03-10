@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseAdmin } from '@/lib/supabase'
-import { getEarningsResults } from '@/lib/fmp'
+import { getStockEarnings } from '@/lib/finnhub'
 import { fetchYahooQuote } from '@/lib/yahoo'
-import { getBeatMissLabel } from '@/lib/utils'
 
 export async function POST(
   req: NextRequest,
@@ -20,45 +19,34 @@ export async function POST(
         price: quote.regularMarketPrice ?? null,
         market_cap: quote.marketCap ?? null,
         pe_ratio: quote.trailingPE ?? null,
-        ev_ebitda: null, // Would need additional API call
+        ev_ebitda: null,
       })
     }
 
-    // 2. Fetch earnings results from FMP
-    const earnings = await getEarningsResults(ticker, 8)
+    // 2. Fetch earnings history from Finnhub
+    const earnings = await getStockEarnings(ticker)
 
-    const snapshots = earnings.map((e) => {
-      const date = new Date(e.date)
-      const month = date.getMonth() + 1
+    const snapshots = earnings
+      .filter((e) => e.period && e.year)
+      .map((e) => {
+        const epsBeatPct = e.estimate != null && e.actual != null && e.estimate !== 0
+          ? ((e.actual - e.estimate) / Math.abs(e.estimate)) * 100
+          : null
 
-      // Determine quarter from month (approximate)
-      let quarter = 'Q1'
-      if (month >= 4 && month <= 6) quarter = 'Q2'
-      else if (month >= 7 && month <= 9) quarter = 'Q3'
-      else if (month >= 10) quarter = 'Q4'
-
-      const revBeatPct = e.revenueEstimated && e.revenue
-        ? ((e.revenue - e.revenueEstimated) / Math.abs(e.revenueEstimated)) * 100
-        : null
-
-      const epsBeatPct = e.epsEstimated && e.eps
-        ? ((e.eps - e.epsEstimated) / Math.abs(e.epsEstimated)) * 100
-        : null
-
-      return {
-        ticker,
-        quarter,
-        fiscal_year: date.getFullYear(),
-        revenue_actual: e.revenue ?? null,
-        revenue_estimate: e.revenueEstimated ?? null,
-        eps_actual: e.eps ?? null,
-        eps_estimate: e.epsEstimated ?? null,
-        revenue_beat_pct: revBeatPct,
-        eps_beat_pct: epsBeatPct,
-        guidance_direction: 'none' as const,
-        report_date: e.date,
-      }
-    })
+        return {
+          ticker,
+          quarter: `Q${e.quarter}`,
+          fiscal_year: e.year,
+          revenue_actual: null,
+          revenue_estimate: null,
+          eps_actual: e.actual,
+          eps_estimate: e.estimate,
+          revenue_beat_pct: null,
+          eps_beat_pct: epsBeatPct,
+          guidance_direction: 'none' as const,
+          report_date: e.period,
+        }
+      })
 
     if (snapshots.length > 0) {
       const { error } = await supabase

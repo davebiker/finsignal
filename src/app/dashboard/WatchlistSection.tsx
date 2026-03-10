@@ -1,9 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { cn, formatCurrency, formatPercent, formatLargeNumber } from '@/lib/utils'
-import { Plus, ExternalLink, TrendingUp, TrendingDown, Trash2, RefreshCw } from 'lucide-react'
+import { Plus, TrendingUp, TrendingDown, ChevronRight } from 'lucide-react'
 
 // Default watchlist tickers shown to all users
 const DEFAULT_WATCHLIST = [
@@ -30,6 +30,7 @@ const MOCK_PRICES: Record<string, { price: number; changePct: number; pe: number
 }
 
 export function WatchlistSection() {
+  const router = useRouter()
   const [watchlist] = useState(DEFAULT_WATCHLIST)
   const [newTicker, setNewTicker] = useState('')
 
@@ -81,8 +82,9 @@ export function WatchlistSection() {
                 return (
                   <tr
                     key={item.ticker}
+                    onClick={() => router.push(`/company/${item.ticker}`)}
                     className={cn(
-                      'border-b border-border last:border-0 hover:bg-surface-2 transition-colors',
+                      'border-b border-border last:border-0 hover:bg-surface-2 transition-colors cursor-pointer',
                       'animate-slide-up'
                     )}
                     style={{ animationDelay: `${i * 50}ms` }}
@@ -132,12 +134,7 @@ export function WatchlistSection() {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <Link
-                        href={`/company/${item.ticker}`}
-                        className="btn-ghost py-1 px-2 text-xs"
-                      >
-                        <ExternalLink className="w-3 h-3" />
-                      </Link>
+                      <ChevronRight className="w-3.5 h-3.5 text-text-muted inline-block" />
                     </td>
                   </tr>
                 )
