@@ -1,8 +1,5 @@
 import { CompanyQuote, MarketIndex } from '@/types'
 
-// We call Yahoo Finance via our own API route to avoid CORS issues
-// and to keep the yahoo-finance2 package server-side only.
-
 export interface YFQuote {
   symbol: string
   shortName?: string
@@ -22,13 +19,29 @@ export interface YFQuote {
   exchange?: string
 }
 
-// Server-side only: use yahoo-finance2 directly
+const YF_BASE = 'https://query1.finance.yahoo.com/v7/finance/quote'
+
+async function yfFetch(symbols: string[]): Promise<YFQuote[]> {
+  const url = `${YF_BASE}?symbols=${symbols.join(',')}`
+  const res = await fetch(url, {
+    headers: { 'User-Agent': 'Mozilla/5.0' },
+    next: { revalidate: 60 },
+  })
+
+  if (!res.ok) {
+    throw new Error(`Yahoo Finance HTTP ${res.status}`)
+  }
+
+  const json = await res.json()
+  const results = json?.quoteResponse?.result
+  if (!Array.isArray(results)) return []
+  return results as YFQuote[]
+}
+
 export async function fetchYahooQuote(ticker: string): Promise<YFQuote | null> {
   try {
-    // Dynamic import so it stays server-side
-    const yf = await import('yahoo-finance2')
-    const quote = await yf.default.quote(ticker)
-    return quote as unknown as YFQuote
+    const quotes = await yfFetch([ticker])
+    return quotes[0] ?? null
   } catch (err) {
     console.error(`Yahoo Finance error for ${ticker}:`, err)
     return null
@@ -45,27 +58,20 @@ export async function fetchMarketIndices(): Promise<MarketIndex[]> {
   ]
 
   try {
-    const yf = await import('yahoo-finance2')
-    const results = await Promise.allSettled(
-      symbols.map(({ symbol }) => yf.default.quote(symbol))
-    )
+    const quotes = await yfFetch(symbols.map((s) => s.symbol))
+    const quoteMap = new Map(quotes.map((q) => [q.symbol, q]))
 
-    return results.map((result, i) => {
-      const { symbol, name } = symbols[i]
-      if (result.status === 'fulfilled') {
-        const q = result.value as unknown as YFQuote
-        return {
-          name,
-          symbol,
-          value: q.regularMarketPrice ?? 0,
-          change: q.regularMarketChange ?? 0,
-          changePct: q.regularMarketChangePercent ?? 0,
-        }
+    return symbols.map(({ symbol, name }) => {
+      const q = quoteMap.get(symbol)
+      return {
+        name,
+        symbol,
+        value: q?.regularMarketPrice ?? 0,
+        change: q?.regularMarketChange ?? 0,
+        changePct: q?.regularMarketChangePercent ?? 0,
       }
-      return { name, symbol, value: 0, change: 0, changePct: 0 }
     })
   } catch {
-    // Return mock data if Yahoo Finance is unavailable
     return symbols.map(({ symbol, name }) => ({
       name, symbol, value: 0, change: 0, changePct: 0,
     }))
