@@ -1,6 +1,7 @@
 import { createSupabaseAdmin } from '@/lib/supabase'
 import { fetchMarketIndices } from '@/lib/yahoo'
 import { getEarningsCalendar } from '@/lib/finnhub'
+import { fetchFearGreedIndex } from '@/lib/feargreed'
 import { format, addDays, startOfWeek, endOfWeek } from 'date-fns'
 import { MarketOverview } from './MarketOverview'
 import { WatchlistWithSummary } from './WatchlistWithSummary'
@@ -16,7 +17,7 @@ export default async function DashboardPage() {
   const weekStart = format(startOfWeek(now, { weekStartsOn: 1 }), 'yyyy-MM-dd')
   const weekEnd = format(endOfWeek(now, { weekStartsOn: 1 }), 'yyyy-MM-dd')
 
-  const [indices, earningsWeek, recentAnalyses] = await Promise.allSettled([
+  const [indices, earningsWeek, recentAnalyses, fearGreedResult] = await Promise.allSettled([
     fetchMarketIndices(),
     getEarningsCalendar(weekStart, weekEnd),
     createSupabaseAdmin()
@@ -24,6 +25,7 @@ export default async function DashboardPage() {
       .select('*')
       .order('created_at', { ascending: false })
       .limit(6),
+    fetchFearGreedIndex(),
   ])
 
   const marketData = indices.status === 'fulfilled' ? indices.value : []
@@ -31,6 +33,7 @@ export default async function DashboardPage() {
   const analysesData = recentAnalyses.status === 'fulfilled'
     ? (recentAnalyses.value.data ?? [])
     : []
+  const fearGreedData = fearGreedResult.status === 'fulfilled' ? fearGreedResult.value : null
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-8 animate-fade-in">
@@ -61,7 +64,7 @@ export default async function DashboardPage() {
             Global Markets
           </h2>
         </div>
-        <MarketOverview indices={marketData} />
+        <MarketOverview indices={marketData} fearGreed={fearGreedData} />
       </section>
 
       <div className="glow-line" />
