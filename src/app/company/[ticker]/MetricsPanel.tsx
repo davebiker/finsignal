@@ -2,7 +2,7 @@ import { CompanyQuote, EarningsSnapshot } from '@/types'
 import { FMPProfile } from '@/lib/fmp'
 import { AVOverview } from '@/lib/alphavantage'
 import { formatLargeNumber, formatNumber, formatPercent } from '@/lib/utils'
-import { calculateEpsTrend, epsTrendLabel, epsTrendColor, epsTrendBg } from '@/lib/signals'
+import { calculateEpsTrend, epsTrendLabel, epsTrendColor, epsTrendBg, calculateFScore, fScoreColor, fScoreBg } from '@/lib/signals'
 import { cn } from '@/lib/utils'
 
 interface Props {
@@ -26,6 +26,19 @@ export function MetricsPanel({ quote, overview, profile, description, earnings =
   // Calculate EPS estimate trend from earnings data (already sorted newest-first)
   const epsEstimates = earnings.map((e) => e.eps_estimate)
   const epsTrend = calculateEpsTrend(epsEstimates)
+
+  // Calculate simplified Piotroski F-Score
+  const profitMargin = overview?.ProfitMargin ? parseFloat(overview.ProfitMargin) : null
+  const fResult = calculateFScore({
+    earnings: earnings.map((e) => ({
+      quarter: e.quarter,
+      fiscal_year: e.fiscal_year,
+      eps_actual: e.eps_actual,
+      eps_estimate: e.eps_estimate,
+      revenue_actual: e.revenue_actual,
+    })),
+    profitMargin: profitMargin != null && !isNaN(profitMargin) ? profitMargin : null,
+  })
 
   const metrics: Metric[] = [
     // Valuation
@@ -125,6 +138,20 @@ export function MetricsPanel({ quote, overview, profile, description, earnings =
             <span>{epsTrendLabel(epsTrend)}</span>
             <span className="text-xs opacity-70 font-normal">
               (based on last {Math.min(earnings.filter(e => e.eps_estimate != null).length, 3)} quarters)
+            </span>
+          </div>
+        )}
+
+        {/* Piotroski F-Score */}
+        {fResult && (
+          <div className={cn(
+            'inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-mono font-semibold',
+            fScoreColor(fResult.score),
+            fScoreBg(fResult.score)
+          )}>
+            <span>F-Score: {fResult.score}/{fResult.maxScore}</span>
+            <span className="text-xs opacity-70 font-normal">
+              ({fResult.label})
             </span>
           </div>
         )}

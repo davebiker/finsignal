@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createSupabaseClient } from '@/lib/supabase'
 import { cn, formatCurrency, formatPercent, formatLargeNumber } from '@/lib/utils'
-import { calculateSignal, signalColor, signalBg, epsTrendLabel, epsTrendColor, epsTrendBg, type ValueSignal, type EpsTrend } from '@/lib/signals'
+import { calculateSignal, signalColor, signalBg, epsTrendLabel, epsTrendColor, epsTrendBg, fScoreColor, fScoreBg, type ValueSignal, type EpsTrend } from '@/lib/signals'
 import { Plus, TrendingUp, TrendingDown, ChevronRight, X, Loader2 } from 'lucide-react'
 import type { WatchlistItem } from '@/types'
 
@@ -21,6 +21,7 @@ interface QuoteData {
   ytdPct: number | null
   relativeStrength: number | null
   week52Pct: number | null
+  fScore: number | null
 }
 
 // Expose signal summary for PortfolioSummary to consume
@@ -281,6 +282,7 @@ export function WatchlistSection({ onSignalSummary }: Props) {
                   <th className="text-right px-4 py-3 text-xs font-mono text-text-muted uppercase tracking-widest hidden lg:table-cell">P/E</th>
                   <th className="text-right px-4 py-3 text-xs font-mono text-text-muted uppercase tracking-widest hidden lg:table-cell">RS vs S&P</th>
                   <th className="text-right px-4 py-3 text-xs font-mono text-text-muted uppercase tracking-widest hidden md:table-cell">52W Pos</th>
+                  <th className="text-center px-4 py-3 text-xs font-mono text-text-muted uppercase tracking-widest hidden lg:table-cell">F-Score</th>
                   <th className="text-center px-4 py-3 text-xs font-mono text-text-muted uppercase tracking-widest">Signal</th>
                   <th className="px-4 py-3 w-16" />
                 </tr>
@@ -394,6 +396,21 @@ export function WatchlistSection({ onSignalSummary }: Props) {
                           </span>
                         ) : (
                           <span className="font-mono tabular-nums text-xs text-text-muted">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-center hidden lg:table-cell">
+                        {quotesLoading && !q ? (
+                          <div className="h-5 w-10 bg-surface-3 rounded animate-pulse inline-block" />
+                        ) : q?.fScore != null ? (
+                          <span className={cn(
+                            'inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-bold border',
+                            fScoreColor(q.fScore),
+                            fScoreBg(q.fScore)
+                          )}>
+                            {q.fScore}/6
+                          </span>
+                        ) : (
+                          <span className="text-text-muted text-xs">—</span>
                         )}
                       </td>
                       <td className="px-4 py-3 text-center">

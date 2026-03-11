@@ -1,7 +1,7 @@
 import { fetchYahooQuote, fetchYtdChange } from '@/lib/yahoo'
 import { getCompanyOverview } from '@/lib/alphavantage'
 import { createSupabaseAdmin } from '@/lib/supabase'
-import { calculateEpsTrend, type EpsTrend } from '@/lib/signals'
+import { calculateEpsTrend, calculateFScore, type EpsTrend } from '@/lib/signals'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
@@ -28,17 +28,17 @@ export async function GET(req: NextRequest) {
     tickers.slice(0, 5).map((t) => getCompanyOverview(t))
   )
 
-  // Fetch last 4 quarters of earnings for beat ratio + EPS trend
+  // Fetch last 8 quarters of earnings for beat ratio, EPS trend, and F-Score
   const supabase = createSupabaseAdmin()
   const earningsResults = await Promise.allSettled(
     tickers.map((t) =>
       supabase
         .from('earnings_snapshots')
-        .select('eps_actual, eps_estimate')
+        .select('eps_actual, eps_estimate, revenue_actual, quarter, fiscal_year')
         .eq('ticker', t)
         .order('fiscal_year', { ascending: false })
         .order('quarter', { ascending: false })
-        .limit(4)
+        .limit(8)
     )
   )
 
@@ -57,6 +57,7 @@ export async function GET(req: NextRequest) {
     ytdPct: number | null
     relativeStrength: number | null
     week52Pct: number | null
+    fScore: number | null
   }> = {}
 
   tickers.forEach((ticker, i) => {
@@ -72,10 +73,11 @@ export async function GET(req: NextRequest) {
       : null
     const sector = avResult?.Sector ?? null
 
-    // Earnings beat ratio + EPS estimate trend
+    // Earnings beat ratio, EPS estimate trend, and F-Score
     const eResult = earningsResults[i]
     let epsBeatRatio: number | null = null
     let epsTrend: EpsTrend | null = null
+    let fScore: number | null = null
     if (eResult.status === 'fulfilled') {
       const rows = eResult.value.data ?? []
       if (rows.length > 0) {
@@ -86,6 +88,21 @@ export async function GET(req: NextRequest) {
         // Calculate EPS estimate trend (rows are newest-first)
         const estimates = rows.map((r: any) => r.eps_estimate as number | null)
         epsTrend = calculateEpsTrend(estimates)
+        // Calculate F-Score (uses AV profit margin for first 5 tickers)
+        const avProfitMargin = avResult?.ProfitMargin
+          ? parseFloat(avResult.ProfitMargin)
+          : null
+        const fResult = calculateFScore({
+          earnings: rows.map((r: any) => ({
+            quarter: r.quarter,
+            fiscal_year: r.fiscal_year,
+            eps_actual: r.eps_actual,
+            eps_estimate: r.eps_estimate,
+            revenue_actual: r.revenue_actual,
+          })),
+          profitMargin: !isNaN(avProfitMargin as number) ? avProfitMargin : null,
+        })
+        fScore = fResult?.score ?? null
       }
     }
 
@@ -115,6 +132,7 @@ export async function GET(req: NextRequest) {
       ytdPct,
       relativeStrength,
       week52Pct,
+      fScore,
     }
   })
 
