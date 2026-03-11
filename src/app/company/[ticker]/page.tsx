@@ -8,6 +8,7 @@ import { EarningsTable } from './EarningsTable'
 import { MetricsPanel } from './MetricsPanel'
 import { AiAnalysisPanel } from './AiAnalysisPanel'
 import { AnalystPanel } from './AnalystPanel'
+import { InsiderTransactions } from './InsiderTransactions'
 
 export const revalidate = 300
 
@@ -110,6 +111,9 @@ export default async function CompanyPage({ params }: Props) {
           />
         </div>
       </div>
+
+      {/* Insider Transactions */}
+      <InsiderTransactions ticker={ticker} />
 
       <div className="glow-line" />
 
