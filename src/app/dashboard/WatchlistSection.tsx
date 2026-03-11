@@ -1,11 +1,11 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { createSupabaseClient } from '@/lib/supabase'
 import { cn, formatCurrency, formatPercent, formatLargeNumber } from '@/lib/utils'
 import { calculateSignal, signalColor, signalBg, epsTrendLabel, epsTrendColor, epsTrendBg, fScoreColor, fScoreBg, type ValueSignal, type EpsTrend } from '@/lib/signals'
-import { Plus, TrendingUp, TrendingDown, ChevronRight, X, Loader2 } from 'lucide-react'
+import { Plus, TrendingUp, TrendingDown, ChevronRight, X, Loader2, ArrowUp, ArrowDown } from 'lucide-react'
 import type { WatchlistItem } from '@/types'
 
 interface QuoteData {
@@ -50,6 +50,20 @@ export function WatchlistSection({ onSignalSummary }: Props) {
   const [adding, setAdding] = useState(false)
   const [deleting, setDeleting] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  // Sorting
+  type SortKey = 'ticker' | 'price' | 'changePct' | 'marketCap' | 'pe' | 'rs' | 'week52' | 'fScore' | 'signal'
+  const [sortKey, setSortKey] = useState<SortKey | null>(null)
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
+
+  function handleSort(key: SortKey) {
+    if (sortKey === key) {
+      setSortDir((d) => d === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortKey(key)
+      setSortDir(key === 'ticker' ? 'asc' : 'desc')
+    }
+  }
 
   // Compute signals for all items
   function computeSignals(
@@ -219,6 +233,61 @@ export function WatchlistSection({ onSignalSummary }: Props) {
 
   const signals = computeSignals(items, quotes)
 
+  const signalRank: Record<string, number> = { BUY: 3, HOLD: 2, SELL: 1 }
+
+  const sortedItems = useMemo(() => {
+    if (!sortKey) return items
+
+    const sorted = [...items].sort((a, b) => {
+      const qa = quotes[a.ticker]
+      const qb = quotes[b.ticker]
+
+      let va: number | null = null
+      let vb: number | null = null
+
+      switch (sortKey) {
+        case 'ticker':
+          return sortDir === 'asc'
+            ? a.ticker.localeCompare(b.ticker)
+            : b.ticker.localeCompare(a.ticker)
+        case 'price':
+          va = qa?.price ?? null; vb = qb?.price ?? null; break
+        case 'changePct':
+          va = qa?.changePct ?? null; vb = qb?.changePct ?? null; break
+        case 'marketCap':
+          va = qa?.marketCap ?? null; vb = qb?.marketCap ?? null; break
+        case 'pe':
+          va = qa?.pe ?? null; vb = qb?.pe ?? null; break
+        case 'rs':
+          va = qa?.relativeStrength ?? null; vb = qb?.relativeStrength ?? null; break
+        case 'week52':
+          va = qa?.week52Pct ?? null; vb = qb?.week52Pct ?? null; break
+        case 'fScore':
+          va = qa?.fScore ?? null; vb = qb?.fScore ?? null; break
+        case 'signal':
+          va = signalRank[signals[a.ticker]?.signal] ?? 0
+          vb = signalRank[signals[b.ticker]?.signal] ?? 0
+          break
+      }
+
+      // Nulls always last
+      if (va == null && vb == null) return 0
+      if (va == null) return 1
+      if (vb == null) return -1
+      const diff = va - vb
+      return sortDir === 'asc' ? diff : -diff
+    })
+
+    return sorted
+  }, [items, quotes, signals, sortKey, sortDir])
+
+  function SortIndicator({ column }: { column: SortKey }) {
+    if (sortKey !== column) return null
+    return sortDir === 'asc'
+      ? <ArrowUp className="w-3 h-3 inline-block ml-0.5" />
+      : <ArrowDown className="w-3 h-3 inline-block ml-0.5" />
+  }
+
   return (
     <div className="space-y-3">
       {/* Add ticker form */}
@@ -275,20 +344,20 @@ export function WatchlistSection({ onSignalSummary }: Props) {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border">
-                  <th className="text-left px-4 py-3 text-xs font-mono text-text-muted uppercase tracking-widest">Ticker</th>
-                  <th className="text-right px-4 py-3 text-xs font-mono text-text-muted uppercase tracking-widest">Price</th>
-                  <th className="text-right px-4 py-3 text-xs font-mono text-text-muted uppercase tracking-widest hidden sm:table-cell">Chg%</th>
-                  <th className="text-right px-4 py-3 text-xs font-mono text-text-muted uppercase tracking-widest hidden md:table-cell">Mkt Cap</th>
-                  <th className="text-right px-4 py-3 text-xs font-mono text-text-muted uppercase tracking-widest hidden lg:table-cell">P/E</th>
-                  <th className="text-right px-4 py-3 text-xs font-mono text-text-muted uppercase tracking-widest hidden lg:table-cell">RS vs S&P</th>
-                  <th className="text-right px-4 py-3 text-xs font-mono text-text-muted uppercase tracking-widest hidden md:table-cell">52W Pos</th>
-                  <th className="text-center px-4 py-3 text-xs font-mono text-text-muted uppercase tracking-widest hidden lg:table-cell">F-Score</th>
-                  <th className="text-center px-4 py-3 text-xs font-mono text-text-muted uppercase tracking-widest">Signal</th>
+                  <th className="text-left px-4 py-3 text-xs font-mono text-text-muted uppercase tracking-widest cursor-pointer hover:text-text-secondary select-none" onClick={() => handleSort('ticker')}>Ticker<SortIndicator column="ticker" /></th>
+                  <th className="text-right px-4 py-3 text-xs font-mono text-text-muted uppercase tracking-widest cursor-pointer hover:text-text-secondary select-none" onClick={() => handleSort('price')}>Price<SortIndicator column="price" /></th>
+                  <th className="text-right px-4 py-3 text-xs font-mono text-text-muted uppercase tracking-widest hidden sm:table-cell cursor-pointer hover:text-text-secondary select-none" onClick={() => handleSort('changePct')}>Chg%<SortIndicator column="changePct" /></th>
+                  <th className="text-right px-4 py-3 text-xs font-mono text-text-muted uppercase tracking-widest hidden md:table-cell cursor-pointer hover:text-text-secondary select-none" onClick={() => handleSort('marketCap')}>Mkt Cap<SortIndicator column="marketCap" /></th>
+                  <th className="text-right px-4 py-3 text-xs font-mono text-text-muted uppercase tracking-widest hidden lg:table-cell cursor-pointer hover:text-text-secondary select-none" onClick={() => handleSort('pe')}>P/E<SortIndicator column="pe" /></th>
+                  <th className="text-right px-4 py-3 text-xs font-mono text-text-muted uppercase tracking-widest hidden lg:table-cell cursor-pointer hover:text-text-secondary select-none" onClick={() => handleSort('rs')}>RS vs S&P<SortIndicator column="rs" /></th>
+                  <th className="text-right px-4 py-3 text-xs font-mono text-text-muted uppercase tracking-widest hidden md:table-cell cursor-pointer hover:text-text-secondary select-none" onClick={() => handleSort('week52')}>52W Pos<SortIndicator column="week52" /></th>
+                  <th className="text-center px-4 py-3 text-xs font-mono text-text-muted uppercase tracking-widest hidden lg:table-cell cursor-pointer hover:text-text-secondary select-none" onClick={() => handleSort('fScore')}>F-Score<SortIndicator column="fScore" /></th>
+                  <th className="text-center px-4 py-3 text-xs font-mono text-text-muted uppercase tracking-widest cursor-pointer hover:text-text-secondary select-none" onClick={() => handleSort('signal')}>Signal<SortIndicator column="signal" /></th>
                   <th className="px-4 py-3 w-16" />
                 </tr>
               </thead>
               <tbody>
-                {items.map((item, i) => {
+                {sortedItems.map((item, i) => {
                   const q = quotes[item.ticker]
                   const isPos = (q?.changePct ?? 0) > 0
                   const isNeg = (q?.changePct ?? 0) < 0
