@@ -4,7 +4,7 @@ import { getEarningsCalendar } from '@/lib/finnhub'
 import { fetchFearGreedIndex } from '@/lib/feargreed'
 import { format, addDays, startOfWeek, endOfWeek } from 'date-fns'
 import { MarketOverview } from './MarketOverview'
-import { WatchlistWithSummary } from './WatchlistWithSummary'
+import { ExpandableDashboard } from './ExpandableDashboard'
 import { EarningsThisWeek } from './EarningsThisWeek'
 import { RecentAnalyses } from './RecentAnalyses'
 import { Signal, TrendingUp, Calendar, Brain } from 'lucide-react'
@@ -69,44 +69,31 @@ export default async function DashboardPage() {
 
       <div className="glow-line" />
 
-      {/* Two-column layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        {/* Left: Watchlist (2/3) */}
-        <div className="lg:col-span-2 space-y-6">
-          <div className="flex items-center gap-2 mb-4">
-            <TrendingUp className="w-3.5 h-3.5 text-text-secondary" />
-            <h2 className="font-display font-semibold text-sm text-text-secondary uppercase tracking-widest">
-              Watchlist
-            </h2>
-          </div>
-          <WatchlistWithSummary />
-        </div>
-
-        {/* Right: Earnings this week (1/3) */}
-        <div className="space-y-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Calendar className="w-3.5 h-3.5 text-text-secondary" />
-            <h2 className="font-display font-semibold text-sm text-text-secondary uppercase tracking-widest">
-              Earnings This Week
-            </h2>
-          </div>
-          <EarningsThisWeek events={earningsData} />
-        </div>
-      </div>
-
-      <div className="glow-line" />
-
-      {/* Recent analyses */}
-      <section>
-        <div className="flex items-center gap-2 mb-4">
-          <Brain className="w-3.5 h-3.5 text-text-secondary" />
-          <h2 className="font-display font-semibold text-sm text-text-secondary uppercase tracking-widest">
-            Recent AI Analyses
-          </h2>
-        </div>
-        <RecentAnalyses analyses={analysesData} />
-      </section>
+      {/* Expandable watchlist + earnings + analyses */}
+      <ExpandableDashboard
+        earningsSection={
+          <>
+            <div className="flex items-center gap-2 mb-4">
+              <Calendar className="w-3.5 h-3.5 text-text-secondary" />
+              <h2 className="font-display font-semibold text-sm text-text-secondary uppercase tracking-widest">
+                Earnings This Week
+              </h2>
+            </div>
+            <EarningsThisWeek events={earningsData} />
+          </>
+        }
+        analysesSection={
+          <section>
+            <div className="flex items-center gap-2 mb-4">
+              <Brain className="w-3.5 h-3.5 text-text-secondary" />
+              <h2 className="font-display font-semibold text-sm text-text-secondary uppercase tracking-widest">
+                Recent AI Analyses
+              </h2>
+            </div>
+            <RecentAnalyses analyses={analysesData} />
+          </section>
+        }
+      />
     </div>
   )
 }
