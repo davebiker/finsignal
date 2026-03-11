@@ -69,7 +69,7 @@ export function CompanyHeader({ ticker, name, sector, exchange, quote, profile, 
               <span className="text-border-bright">·</span>
               <span className={cn('text-xs font-mono', sectorColor(sector))}>{sector}</span>
               <span className="text-border-bright">·</span>
-              <span className="text-xs font-mono text-text-muted">{exchange}</span>
+              <span className="text-xs font-mono px-1.5 py-0.5 rounded bg-surface-3 border border-border text-text-secondary">{exchange}</span>
               {profile?.website && (
                 <>
                   <span className="text-border-bright">·</span>

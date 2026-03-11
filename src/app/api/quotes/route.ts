@@ -1,4 +1,4 @@
-import { fetchYahooQuote, fetchYtdChange } from '@/lib/yahoo'
+import { fetchYahooQuote, fetchYtdChange, resolveYahooSymbol } from '@/lib/yahoo'
 import { getCompanyOverview } from '@/lib/alphavantage'
 import { createSupabaseAdmin } from '@/lib/supabase'
 import { calculateEpsTrend, calculateFScore, type EpsTrend } from '@/lib/signals'
@@ -7,7 +7,8 @@ import type { NextRequest } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 
-// GET /api/quotes?tickers=AAPL,MSFT,NIO
+// GET /api/quotes?tickers=AAPL,MSFT,NIO&symbols=AAPL,MSFT,NIO
+// symbols param provides pre-resolved yahoo symbols (with exchange suffixes)
 export async function GET(req: NextRequest) {
   const tickersParam = req.nextUrl.searchParams.get('tickers')
   if (!tickersParam) {
@@ -15,11 +16,19 @@ export async function GET(req: NextRequest) {
   }
 
   const tickers = tickersParam.split(',').map((t) => t.trim().toUpperCase()).filter(Boolean).slice(0, 20)
+  // Pre-resolved yahoo symbols (may include exchange suffixes like VOW3.DE)
+  const symbolsParam = req.nextUrl.searchParams.get('symbols')
+  const symbols = symbolsParam
+    ? symbolsParam.split(',').map((s) => s.trim().toUpperCase())
+    : tickers
 
-  // Fetch Yahoo quotes + YTD for all tickers, plus S&P 500 YTD
+  // Build ticker→yahooSymbol mapping
+  const yahooSymbols = tickers.map((t, i) => symbols[i] || t)
+
+  // Fetch Yahoo quotes + YTD using resolved symbols, plus S&P 500 YTD
   const [yahooResults, ytdResults, spYtdResult] = await Promise.all([
-    Promise.allSettled(tickers.map((t) => fetchYahooQuote(t))),
-    Promise.allSettled(tickers.map((t) => fetchYtdChange(t))),
+    Promise.allSettled(yahooSymbols.map((s) => fetchYahooQuote(s))),
+    Promise.allSettled(yahooSymbols.map((s) => fetchYtdChange(s))),
     fetchYtdChange('^GSPC').catch(() => null),
   ])
 
@@ -58,6 +67,8 @@ export async function GET(req: NextRequest) {
     relativeStrength: number | null
     week52Pct: number | null
     fScore: number | null
+    yahooSymbol: string | null
+    exchange: string | null
   }> = {}
 
   tickers.forEach((ticker, i) => {
@@ -133,6 +144,8 @@ export async function GET(req: NextRequest) {
       relativeStrength,
       week52Pct,
       fScore,
+      yahooSymbol: yahooSymbols[i] !== ticker ? yahooSymbols[i] : null,
+      exchange: q?.exchange ?? null,
     }
   })
 

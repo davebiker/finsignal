@@ -9,6 +9,7 @@ export interface WatchlistItem {
   company_name: string
   sector: string | null
   added_at: string
+  yahoo_symbol: string | null
 }
 
 export interface EarningsSnapshot {

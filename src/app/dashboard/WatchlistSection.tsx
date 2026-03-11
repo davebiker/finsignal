@@ -22,6 +22,8 @@ interface QuoteData {
   relativeStrength: number | null
   week52Pct: number | null
   fScore: number | null
+  yahooSymbol: string | null
+  exchange: string | null
 }
 
 // Expose signal summary for PortfolioSummary to consume
@@ -108,11 +110,14 @@ export function WatchlistSection({ onSignalSummary }: Props) {
     })
   }, [items, quotes, onSignalSummary])
 
-  const fetchQuotes = useCallback(async (tickers: string[]) => {
-    if (tickers.length === 0) return
+  const fetchQuotes = useCallback(async (watchlistItems: WatchlistItem[]) => {
+    if (watchlistItems.length === 0) return
     setQuotesLoading(true)
     try {
-      const res = await fetch(`/api/quotes?tickers=${tickers.join(',')}`)
+      const tickers = watchlistItems.map((i) => i.ticker)
+      const symbols = watchlistItems.map((i) => i.yahoo_symbol || i.ticker)
+      const url = `/api/quotes?tickers=${tickers.join(',')}&symbols=${symbols.join(',')}`
+      const res = await fetch(url)
       if (res.ok) {
         const data = await res.json()
         setQuotes(data.quotes ?? {})
@@ -138,8 +143,7 @@ export function WatchlistSection({ onSignalSummary }: Props) {
     const watchlistItems = (data ?? []) as WatchlistItem[]
     setItems(watchlistItems)
     setLoading(false)
-    const tickers = watchlistItems.map((i) => i.ticker)
-    fetchQuotes(tickers)
+    fetchQuotes(watchlistItems)
   }, [fetchQuotes])
 
   useEffect(() => {
@@ -194,18 +198,35 @@ export function WatchlistSection({ onSignalSummary }: Props) {
     setNewTicker('')
     setAdding(false)
 
+    // Resolve Yahoo symbol (tries exchange suffixes for international tickers)
     try {
-      const res = await fetch(`/api/quotes?tickers=${ticker}`)
-      if (res.ok) {
-        const { quotes: newQuotes } = await res.json()
-        setQuotes((prev) => ({ ...prev, ...newQuotes }))
+      const resolveRes = await fetch(`/api/resolve-ticker?ticker=${ticker}`)
+      if (resolveRes.ok) {
+        const resolved = await resolveRes.json()
+        const yahooSymbol: string = resolved.yahooSymbol ?? ticker
+        const name: string | null = resolved.name ?? null
 
-        const name = newQuotes[ticker]?.name
+        // Update local state
+        const updates: Partial<WatchlistItem> = {}
+        if (yahooSymbol !== ticker) {
+          updates.yahoo_symbol = yahooSymbol
+        }
         if (name && name !== ticker) {
+          updates.company_name = name
+        }
+
+        if (Object.keys(updates).length > 0) {
           setItems((prev) =>
-            prev.map((i) => i.id === newItem.id ? { ...i, company_name: name } : i)
+            prev.map((i) => i.id === newItem.id ? { ...i, ...updates } : i)
           )
-          supabase.from('watchlist').update({ company_name: name }).eq('id', newItem.id)
+          supabase.from('watchlist').update(updates).eq('id', newItem.id)
+        }
+
+        // Fetch quotes with resolved symbol
+        const qRes = await fetch(`/api/quotes?tickers=${ticker}&symbols=${yahooSymbol}`)
+        if (qRes.ok) {
+          const { quotes: newQuotes } = await qRes.json()
+          setQuotes((prev) => ({ ...prev, ...newQuotes }))
         }
       }
     } catch {}

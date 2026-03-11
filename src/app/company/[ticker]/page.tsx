@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation'
 import { createSupabaseAdmin } from '@/lib/supabase'
 import { getCompanyProfile } from '@/lib/fmp'
 import { getCompanyOverview } from '@/lib/alphavantage'
-import { fetchYahooQuote, fetchYtdChange, yfQuoteToCompanyQuote } from '@/lib/yahoo'
+import { fetchYahooQuote, fetchYtdChange, resolveYahooSymbol, getExchangeLabel, getExchangeFromSuffix, yfQuoteToCompanyQuote } from '@/lib/yahoo'
 import { CompanyHeader } from './CompanyHeader'
 import { EarningsTable } from './EarningsTable'
 import { MetricsPanel } from './MetricsPanel'
@@ -44,15 +44,32 @@ export default async function CompanyPage({ params }: Props) {
       fetchYtdChange('^GSPC'),
     ])
 
-  const quote = quoteResult.status === 'fulfilled' && quoteResult.value
+  let quote = quoteResult.status === 'fulfilled' && quoteResult.value
     ? yfQuoteToCompanyQuote(quoteResult.value)
     : null
+
+  // If no Yahoo data with raw ticker, try resolving with exchange suffixes
+  let resolvedSymbol = ticker
+  if (!quote) {
+    try {
+      const resolved = await resolveYahooSymbol(ticker)
+      if (resolved) {
+        quote = yfQuoteToCompanyQuote(resolved.quote)
+        resolvedSymbol = resolved.symbol
+      }
+    } catch {}
+  }
 
   const profile = profileResult.status === 'fulfilled' ? profileResult.value : null
   const overview = overviewResult.status === 'fulfilled' ? overviewResult.value : null
   const earnings = earningsResult.status === 'fulfilled' ? (earningsResult.value.data ?? []) : []
   const analysis = analysisResult.status === 'fulfilled' ? analysisResult.value.data : null
-  const stockYtd = ytdResult.status === 'fulfilled' ? ytdResult.value : null
+
+  // For YTD, use the resolved symbol
+  let stockYtd = ytdResult.status === 'fulfilled' ? ytdResult.value : null
+  if (stockYtd == null && resolvedSymbol !== ticker) {
+    try { stockYtd = await fetchYtdChange(resolvedSymbol) } catch {}
+  }
   const spYtd = spYtdResult.status === 'fulfilled' ? spYtdResult.value : null
   const relativeStrength = stockYtd != null && spYtd != null ? stockYtd - spYtd : null
 
@@ -61,9 +78,12 @@ export default async function CompanyPage({ params }: Props) {
     notFound()
   }
 
-  const companyName = profile?.companyName ?? overview?.Name ?? ticker
+  const companyName = profile?.companyName ?? overview?.Name ?? quote?.name ?? ticker
   const sector = profile?.sector ?? overview?.Sector ?? 'Unknown'
-  const exchange = profile?.exchange ?? quote?.exchange ?? 'Unknown'
+  // Derive exchange: from Yahoo exchangeName, suffix, or profile
+  const exchangeRaw = profile?.exchange ?? quote?.exchange ?? 'Unknown'
+  const exchangeFromSuffix = getExchangeFromSuffix(resolvedSymbol)
+  const exchange = exchangeFromSuffix ?? getExchangeLabel(exchangeRaw)
   const description = profile?.description ?? overview?.Description ?? null
 
   return (

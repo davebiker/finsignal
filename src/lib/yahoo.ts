@@ -175,6 +175,85 @@ export async function fetchYtdChange(symbol: string): Promise<number | null> {
   return null
 }
 
+// ── European exchange suffixes for ticker resolution ─────────
+
+const EXCHANGE_SUFFIXES = ['.DE', '.L', '.PA', '.AS', '.MI', '.MC', '.SW', '.ST', '.HE', '.CO', '.OL']
+
+// Map Yahoo exchangeName → short label
+const EXCHANGE_LABELS: Record<string, string> = {
+  'NMS': 'NASDAQ',
+  'NYQ': 'NYSE',
+  'NGM': 'NASDAQ',
+  'NCM': 'NASDAQ',
+  'PCX': 'NYSE ARCA',
+  'BTS': 'CBOE',
+  'GER': 'XETRA',
+  'FRA': 'FRANKFURT',
+  'LSE': 'LSE',
+  'PAR': 'EURONEXT',
+  'AMS': 'EURONEXT',
+  'MIL': 'BORSA ITALIANA',
+  'MCE': 'BME',
+  'EBS': 'SIX',
+  'STO': 'NASDAQ OMX',
+  'HEL': 'NASDAQ HEL',
+  'CPH': 'NASDAQ CPH',
+  'OSL': 'OSLO',
+}
+
+export function getExchangeLabel(exchangeName?: string): string {
+  if (!exchangeName) return 'Unknown'
+  return EXCHANGE_LABELS[exchangeName] ?? exchangeName
+}
+
+export function getExchangeFromSuffix(symbol: string): string | null {
+  const suffixMap: Record<string, string> = {
+    '.DE': 'XETRA',
+    '.L': 'LSE',
+    '.PA': 'EURONEXT',
+    '.AS': 'EURONEXT',
+    '.MI': 'BORSA ITALIANA',
+    '.MC': 'BME',
+    '.SW': 'SIX',
+    '.ST': 'NASDAQ OMX',
+    '.HE': 'NASDAQ HEL',
+    '.CO': 'NASDAQ CPH',
+    '.OL': 'OSLO',
+  }
+  for (const [suffix, label] of Object.entries(suffixMap)) {
+    if (symbol.toUpperCase().endsWith(suffix)) return label
+  }
+  return null
+}
+
+/**
+ * Try to resolve a ticker to a Yahoo Finance symbol.
+ * First tries the raw ticker, then appends common exchange suffixes.
+ * Returns { symbol, quote } or null if nothing found.
+ */
+export async function resolveYahooSymbol(ticker: string): Promise<{ symbol: string; quote: YFQuote } | null> {
+  // Try raw ticker first
+  const direct = await yfFetchChart(ticker)
+  if (direct?.regularMarketPrice) {
+    return { symbol: ticker, quote: direct }
+  }
+
+  // Try exchange suffixes
+  for (const suffix of EXCHANGE_SUFFIXES) {
+    const candidate = ticker + suffix
+    try {
+      const q = await yfFetchChart(candidate)
+      if (q?.regularMarketPrice) {
+        return { symbol: candidate, quote: q }
+      }
+    } catch {
+      // continue to next suffix
+    }
+  }
+
+  return null
+}
+
 // ── Public API ──────────────────────────────────────────────
 
 export async function fetchYahooQuote(ticker: string): Promise<YFQuote | null> {
